@@ -57,7 +57,7 @@ public enum SteamScanner {
            let libraryFolders = try? VDFParser.parse(url: foldersURL),
            let rootNode = value(caseInsensitive: "libraryfolders", in: libraryFolders)?.object {
             for (_, entry) in rootNode {
-                guard let path = entry.object.flatMap({ value(caseInsensitive: "path", in: $0)?.string }) else { continue }
+                guard let path = entry.object.flatMap({ value(caseInsensitive: "path", in: $0)?.string }) ?? entry.string else { continue }
                 if let resolved = resolveLibraryPath(path, relativeTo: root) {
                     libraries.insert(resolved.appendingPathComponent("steamapps", isDirectory: true).standardizedFileURL)
                 }
@@ -65,11 +65,13 @@ public enum SteamScanner {
         }
 
         var games: [UInt64: SteamGame] = [:]
-        for library in libraries {
+        for library in libraries.sorted(by: { $0.path < $1.path }) {
             let manifests = (try? FileManager.default.contentsOfDirectory(at: library, includingPropertiesForKeys: nil)) ?? []
             for manifest in manifests where manifest.lastPathComponent.hasPrefix("appmanifest_") && manifest.pathExtension == "acf" {
                 guard let game = try? parseManifest(manifest, steamApps: library) else { continue }
-                games[game.appID] = game
+                if games[game.appID] == nil || (game.isReadyToPlay && games[game.appID]?.isReadyToPlay != true) {
+                    games[game.appID] = game
+                }
             }
         }
         return games.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -81,7 +83,9 @@ public enum SteamScanner {
               let idText = value(caseInsensitive: "appid", in: appState)?.string,
               let appID = UInt64(idText),
               let name = value(caseInsensitive: "name", in: appState)?.string,
-              let installDir = value(caseInsensitive: "installdir", in: appState)?.string else {
+              let installDir = value(caseInsensitive: "installdir", in: appState)?.string,
+              !installDir.isEmpty, installDir != ".", installDir != "..",
+              !installDir.contains("/"), !installDir.contains("\\") else {
             throw IndieError.invalidData(L("Steam AppManifest 缺少必填字段：\(url.lastPathComponent)"))
         }
         return SteamGame(
@@ -106,21 +110,12 @@ public enum SteamScanner {
         let normalized = value.replacingOccurrences(of: "\\\\", with: "\\")
         guard normalized.count >= 3,
               normalized[normalized.index(after: normalized.startIndex)] == ":" else {
-            return URL(fileURLWithPath: normalized, isDirectory: true)
+            return normalized.hasPrefix("/") ? URL(fileURLWithPath: normalized, isDirectory: true) : nil
         }
-        let drive = String(normalized.prefix(1)).lowercased()
-        let components = normalized.dropFirst(2).split(separator: "\\").map(String.init)
         let pathComponents = currentSteamApps.standardizedFileURL.pathComponents
         guard let driveCIndex = pathComponents.lastIndex(of: "drive_c") else { return nil }
         let prefixPath = NSString.path(withComponents: Array(pathComponents.prefix(driveCIndex)))
         let prefix = URL(fileURLWithPath: prefixPath, isDirectory: true)
-        let base: URL
-        if drive == "c" {
-            base = prefix.appendingPathComponent("drive_c", isDirectory: true)
-        } else {
-            let link = prefix.appendingPathComponent("dosdevices/\(drive):")
-            base = link.resolvingSymlinksInPath()
-        }
-        return components.reduce(base) { $0.appendingPathComponent($1, isDirectory: true) }
+        return WineDrivePaths.hostURL(for: normalized, bottleRoot: prefix)
     }
 }

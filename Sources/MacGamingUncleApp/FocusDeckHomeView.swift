@@ -145,15 +145,19 @@ struct FocusDeckHomeView: View {
 
     @ViewBuilder
     private func primaryAction(_ game: SteamAccountGame) -> some View {
-        if let pending = model.steamDownloads.first(where: { $0.appID == game.appID }) {
+        if let offline = model.offlineLibrary(for:game.appID) {
+            SteamOfflineLibraryNotice(library:offline)
+        } else if let pending = model.steamDownloads.first(where: { $0.appID == game.appID }) {
             SteamInstallProgress(game: pending)
+        } else if let request = model.steamInstallationRequests[game.appID] {
+            SteamBackgroundInstallStatus(appID: game.appID, state: request)
         } else if let installed = model.steamGames.first(where: { $0.appID == game.appID }) {
             Button { Task { await model.launchSteamGame(installed) } } label: {
                 GameLaunchButtonLabel(state: model.gameLaunchStates[game.appID] ?? .idle)
             }
             .buttonStyle(FocusPrimaryButtonStyle()).disabled(model.isWorking || model.gameLaunchStates[game.appID]?.blocksLaunch == true)
         } else {
-            Button(L("安装游戏"), systemImage: "arrow.down.circle.fill") {
+            Button(L("安装游戏"), systemImage: "arrow.down.circle") {
                 Task { await model.installSteamGame(appID: game.appID) }
             }
             .buttonStyle(FocusPrimaryButtonStyle()).disabled(model.isWorking)

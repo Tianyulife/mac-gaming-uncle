@@ -19,7 +19,7 @@ struct SteamShellLibraryView: View {
             let matchesSearch = search.isEmpty || game.name.localizedCaseInsensitiveContains(search)
             let matchesFilter = switch filter {
             case .all: true
-            case .installed: game.isInstalled
+            case .installed: game.isInstalled || model.offlineLibrary(for:game.appID) != nil
             case .recent: game.lastPlayed != nil
             }
             return matchesSearch && matchesFilter
@@ -64,6 +64,7 @@ struct SteamShellLibraryView: View {
             }
             SteamSessionIndicator(manager: model.steamSessionManager)
             Spacer()
+            Button(L("存储与游戏库"),systemImage:"externaldrive") { model.showSteamStorage = true }
             Picker("", selection: $filter) {
                 Text(L("全部")).tag(SteamLibraryFilter.all)
                 Text(L("已安装")).tag(SteamLibraryFilter.installed)
@@ -87,7 +88,7 @@ struct SteamShellLibraryView: View {
                 .frame(width: 54, height: 31).clipShape(RoundedRectangle(cornerRadius: 4))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(game.name).lineLimit(1).font(.system(size: 13.5, weight: .medium))
-                    Text(model.steamDownloads.first(where: { $0.appID == game.appID })?.installationLabel
+                    Text(model.offlineLibrary(for:game.appID) != nil ? L("磁盘未连接") : model.steamDownloads.first(where: { $0.appID == game.appID })?.installationLabel
                          ?? (game.isInstalled ? L("已安装") : playtime(game.playtimeMinutes)))
                         .font(.caption2).foregroundStyle(game.isInstalled ? IndiePalette.green : IndiePalette.secondaryText)
                 }
@@ -122,8 +123,12 @@ struct SteamShellLibraryView: View {
                     .padding(28)
                 }
                 HStack(spacing: 12) {
-                    if let pending = model.steamDownloads.first(where: { $0.appID == game.appID }) {
+                    if let offline = model.offlineLibrary(for:game.appID) {
+                        SteamOfflineLibraryNotice(library:offline)
+                    } else if let pending = model.steamDownloads.first(where: { $0.appID == game.appID }) {
                         SteamInstallProgress(game: pending)
+                    } else if let request = model.steamInstallationRequests[game.appID] {
+                        SteamBackgroundInstallStatus(appID: game.appID, state: request)
                     } else if let installed = model.steamGames.first(where: { $0.appID == game.appID }) {
                         Button { Task { await model.launchSteamGame(installed) } } label: {
                             GameLaunchButtonLabel(state: model.gameLaunchStates[game.appID] ?? .idle)
@@ -131,8 +136,9 @@ struct SteamShellLibraryView: View {
                         .buttonStyle(.borderedProminent).controlSize(.large)
                         .disabled(model.isWorking || model.gameLaunchStates[game.appID]?.blocksLaunch == true)
                         Button(L("游戏设置"), systemImage: "slider.horizontal.3") { showSettings(installed) }
+                        SteamUninstallButton(game: installed)
                     } else {
-                        Button(L("安装"), systemImage: "arrow.down.circle.fill") {
+                        Button(L("安装游戏"), systemImage: "arrow.down.circle") {
                             Task { await model.installSteamGame(appID: game.appID) }
                         }
                         .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.isWorking)

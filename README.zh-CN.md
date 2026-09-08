@@ -3,11 +3,11 @@
   <h1>Mac Gaming Uncle</h1>
   <p><strong>在 Apple Silicon Mac 上运行你拥有的 Windows 游戏。</strong></p>
   <p>原生 SwiftUI · Wine · Apple D3DMetal · MetalFX · DXVK</p>
-  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg">下载 0.4.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.4.0">版本说明</a></p>
+  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg">下载 0.5.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.5.0">版本说明</a></p>
   <p><a href="README.md">English</a> · 简体中文</p>
 </div>
 
-0.4.0 研究预览版加入了默认关闭的[通用 2× 插帧原型](docs/FRAME_INTERPOLATION.md)，适用于 macOS 26 的窗口／无边框游戏；不保证帧率翻倍，1080p 支持和移动 HUD 画质仍需改进；应用不启用内部的 4× 和静态细节实验。架构研究参考了 [MetalDuck](https://github.com/Lospi/MetalDuck) 和 Apple 的 VideoToolbox／ScreenCaptureKit 公开接口，不包含小黄鸭 LSFG 模型。
+0.5.0 研究预览版仍包含默认关闭的[通用 2× 插帧原型](docs/FRAME_INTERPOLATION.md)，适用于 macOS 26 的窗口／无边框游戏；不保证帧率翻倍，1080p 支持和移动 HUD 画质仍需改进；应用不启用内部的 4× 和静态细节实验。架构研究参考了 [MetalDuck](https://github.com/Lospi/MetalDuck) 和 Apple 的 VideoToolbox／ScreenCaptureKit 公开接口，不包含小黄鸭 LSFG 模型。
 
 <p align="center">
   <img src="Assets/MacGamingUncleHero.png" width="100%" alt="叔叔没有选错，只是选得太早。">
@@ -26,9 +26,9 @@
 
 ### 2. 下载应用安装包
 
-点击 **[下载 Mac Gaming Uncle 0.4.0（DMG）](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg)**。
+点击 **[下载 Mac Gaming Uncle 0.5.0（DMG）](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg)**。
 
-也可以打开 [Release 页面](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.4.0)，在 **Assets（资源）** 中选择 `Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg`。不要选择 `Source code`、`.sha256` 或 Wine 的 `.tar.xz`：它们分别是源码、校验文件和由应用自动安装的运行时。
+也可以打开 [Release 页面](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.5.0)，在 **Assets（资源）** 中选择 `Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg`。不要选择 `Source code`、`.sha256` 或 Wine 的 `.tar.xz`：它们分别是源码、校验文件和由应用自动安装的运行时。
 
 ### 3. 安装到“应用程序”并打开
 
@@ -52,7 +52,9 @@
 
 ### 5. 安装并开始游戏
 
-打开顶部 **游戏库**，选择自己拥有的游戏，点击 **安装**，按 Steam 提示完成下载。安装完成后点击 **开始游戏**。在“商店”浏览或看到某款游戏并不代表已经拥有它，需要先在 Steam 获得相应授权。
+打开顶部 **游戏库**，选择自己拥有的游戏，点击 **安装**，选择目标游戏库后确认。Steam 在后台下载，应用显示进度和速度，安装及校验完成后才启用 **开始游戏**。登录或额外确认可通过 **Steam 客户端** 入口处理。在商店浏览某款游戏并不代表已拥有它，需要先在 Steam 获得相应授权。
+
+通过 **存储与游戏库** 挂载其他已连接磁盘上的游戏库；游戏详情新增带确认提示的 **卸载游戏**。详见[存储指南](docs/STEAM_STORAGE.md)。0.5.0 同时修复 Steam 联机状态误判和安装闪窗，见[版本说明](docs/releases/0.5.0.md)。
 
 第一次游玩先保留默认配置；需要调整分辨率、HUD 或手柄时，再打开 **游戏设置**。手柄请先与 macOS 连接，再到顶部手柄入口检查。首次游戏启动可能需要构建图形缓存，请耐心等待。能显示在游戏库中不代表该游戏已验证兼容。
 
@@ -81,7 +83,7 @@ Mac Gaming Uncle 官方项目和官方发行将永久保持非商业化：不推
 
 ## 项目状态
 
-Mac Gaming Uncle 目前处于 `0.4.0` 研究预览阶段，面向 Apple Silicon 与 macOS 15 及以上版本。应用已经打通 Steam 客户端式外壳、原生商店与游戏库、每游戏独立配置、全局 Steam 会话以及 SDL/XInput 手柄启动闭环。
+Mac Gaming Uncle 目前处于 `0.5.0` 研究预览阶段，面向 Apple Silicon 与 macOS 15 及以上版本。应用已经打通 Steam 客户端式外壳、原生商店与游戏库、每游戏独立配置、全局 Steam 会话以及 SDL/XInput 手柄启动闭环。
 
 实机验证环境：Apple M3 Max、macOS 26.6.2、GPTK 4.0 beta 2、Mac Gaming Uncle Wine 11.0.2。`Grim Dawn 1.3.0.8 (x64)` 已验证完整中文 UI、Steam 集成、XInput 手柄与 Apple 官方 Metal HUD（D3D11，实测约 114 FPS）；`Ruins of Dawn` 已验证进入主菜单。
 
@@ -156,7 +158,7 @@ Mac Gaming Uncle 负责组合、验证和启动这些层。它不会修改游戏
 
 以下仅供开发者使用，需要 Xcode 26 或兼容 Swift 6 的完整开发工具链。普通用户请按上方“新手下载安装指南”安装 DMG。
 
-不需要开发环境时，可直接下载经过挂载和签名结构验证的 [Mac Gaming Uncle 0.4.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg)，并用同目录的 [SHA-256 文件](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg.sha256) 校验。
+不需要开发环境时，可直接下载经过挂载和签名结构验证的 [Mac Gaming Uncle 0.5.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg)，并用同目录的 [SHA-256 文件](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg.sha256) 校验。
 
 ```bash
 git clone https://github.com/enginefuture/mac-gaming-uncle.git

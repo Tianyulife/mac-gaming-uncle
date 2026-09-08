@@ -118,18 +118,20 @@ public enum SteamCompatibilityManager {
     public static func prepare(
         bottle: BottleRecord,
         wrapper: URL,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        steamDirectory: URL? = nil
     ) throws -> SteamCompatibilityResult {
         guard fileManager.isReadableFile(atPath: wrapper.path) else {
             throw IndieError.notFound(L("Mac Gaming Uncle 缺少 Steam 界面兼容组件，请重新构建应用"))
         }
-        let steam = steamRoot(in: bottle)
+        let steam = steamDirectory ?? steamRoot(in: bottle)
         let cef = steam.appendingPathComponent("bin/cef/cef.win64", isDirectory: true)
         let webHelper = cef.appendingPathComponent("steamwebhelper.exe")
         let realWebHelper = cef.appendingPathComponent("steamwebhelper_real.exe")
         guard fileManager.fileExists(atPath: webHelper.path) else {
             throw IndieError.notFound(L("Steam 安装不完整：找不到 steamwebhelper.exe"))
         }
+        try SteamDownloadBridge.prepare(steamDirectory: steam)
 
         let wrapperHash = try ManifestSecurity.sha256(of: wrapper)
         let currentHash = try ManifestSecurity.sha256(of: webHelper)

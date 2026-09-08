@@ -132,8 +132,12 @@ struct NativeSteamStoreView: View {
                 Text(item.name).font(.system(size: 36, weight: .bold, design: .rounded)).lineLimit(2)
                 priceView(item)
                 HStack(spacing: 11) {
-                    if let pending = model.steamDownloads.first(where: { $0.appID == item.id }) {
+                    if let offline = model.offlineLibrary(for:item.id) {
+                        SteamOfflineLibraryNotice(library:offline)
+                    } else if let pending = model.steamDownloads.first(where: { $0.appID == item.id }) {
                         SteamInstallProgress(game: pending)
+                    } else if let request = model.steamInstallationRequests[item.id] {
+                        SteamBackgroundInstallStatus(appID: item.id, state: request)
                     } else if let installed = model.steamGames.first(where: { $0.appID == item.id }) {
                         Button { Task { await model.launchSteamGame(installed) } } label: {
                             GameLaunchButtonLabel(state: model.gameLaunchStates[item.id] ?? .idle)
@@ -141,10 +145,11 @@ struct NativeSteamStoreView: View {
                             .buttonStyle(.borderedProminent).controlSize(.large)
                             .disabled(model.isWorking || model.gameLaunchStates[item.id]?.blocksLaunch == true)
                     } else {
-                        Button(L("添加并安装"), systemImage: "arrow.down.circle.fill") {
+                        Button(L("安装游戏"), systemImage: "arrow.down.circle") {
                             Task { await model.installSteamGame(appID: item.id) }
                         }
                         .buttonStyle(.borderedProminent).controlSize(.large)
+                        .disabled(model.isWorking || model.isOpeningSteamClient)
                     }
                     Button(L("查看详情"), systemImage: "info.circle") { openSecurePage(item.id) }
                         .buttonStyle(.bordered).controlSize(.large)

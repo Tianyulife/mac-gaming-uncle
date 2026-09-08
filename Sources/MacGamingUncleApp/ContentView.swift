@@ -35,6 +35,17 @@ struct ContentView: View {
         VStack(spacing: 0) {
             GlobalNavigationBar(destination: $destination, showAdvanced: $showAdvanced)
             Divider().overlay(IndiePalette.border)
+            if let notice = model.steamClientNotice {
+                HStack(spacing: 10) {
+                    if model.isOpeningSteamClient { ProgressView().controlSize(.small) }
+                    else { Image(systemName: "info.circle") }
+                    Text(notice).font(.callout).frame(maxWidth: .infinity, alignment: .leading)
+                    Button(L("关闭提示"), systemImage: "xmark") { model.steamClientNotice = nil }
+                        .labelStyle(.iconOnly).buttonStyle(.plain)
+                }
+                .padding(.horizontal, 22).padding(.vertical, 10)
+                .background(IndiePalette.surface)
+            }
             ZStack {
                 IndieBackground()
                 destinationContent
@@ -44,7 +55,7 @@ struct ContentView: View {
         .task {
             while !Task.isCancelled {
                 model.syncSteamLibrary()
-                do { try await Task.sleep(for: .seconds(5)) }
+                do { try await Task.sleep(for: .seconds(model.steamDownloads.isEmpty && model.steamInstallationRequests.isEmpty ? 5 : 1)) }
                 catch { return }
             }
         }
@@ -76,6 +87,12 @@ struct ContentView: View {
             AdvancedSettingsView()
                 .environmentObject(model)
                 .frame(minWidth: 760, minHeight: 620)
+        }
+        .sheet(isPresented: $model.showSteamStorage) {
+            SteamStorageView().environmentObject(model)
+        }
+        .sheet(item: $model.pendingSteamInstall) { target in
+            SteamStorageView(target:target).environmentObject(model)
         }
     }
 
@@ -155,13 +172,21 @@ private struct GlobalNavigationBar: View {
             navigationButton(L("游戏库"), icon: "rectangle.stack", target: .library)
             Spacer()
 
-            Button { destination = .library } label: {
-                Label(L("下载"), systemImage: "arrow.down.to.line")
+            Button { Task { await model.openSteamClient() } } label: {
+                Label(L("Steam 客户端"), systemImage: "arrow.up.forward.app")
+            }
+            .buttonStyle(TopBarButtonStyle())
+            .disabled(model.isWorking || model.isOpeningSteamClient)
+            .help(L("打开常驻 Steam；登录、安装和更新均由 Steam 客户端完成"))
+
+            Button { Task { await model.openSteamClient(.downloads) } } label: {
+                Label(L("Steam 下载"), systemImage: "arrow.down.to.line")
                     .overlay(alignment: .topTrailing) {
-                        if model.isWorking { Circle().fill(IndiePalette.blue).frame(width: 7, height: 7).offset(x: 8, y: -3) }
+                        if !model.steamDownloads.isEmpty { Circle().fill(IndiePalette.blue).frame(width: 7, height: 7).offset(x: 8, y: -3) }
                     }
             }
             .buttonStyle(TopBarButtonStyle())
+            .disabled(model.isWorking || model.isOpeningSteamClient)
 
             Button { destination = .controllers } label: {
                 HStack(spacing: 7) {
@@ -749,10 +774,14 @@ struct LibraryView: View {
 }
 
 struct SteamSessionIndicator: View {
+    @EnvironmentObject private var model: MacGamingUncleAppModel
     @ObservedObject var manager: SteamSessionManager
 
     var body: some View {
-        if manager.state == .running {
+        if model.steamAuthenticationRequired {
+            Label(L("Steam 未联机"), systemImage: "wifi.slash")
+                .font(.system(size: 12.5, weight: .medium)).foregroundStyle(.orange)
+        } else if manager.state == .running {
             Label(
                 manager.reuseCount > 0 ? L("Steam 已保持登录 · 已快速复用 \(manager.reuseCount) 次") : L("Steam 已保持登录"),
                 systemImage: "bolt.circle.fill"

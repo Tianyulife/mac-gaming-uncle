@@ -23,6 +23,10 @@ jobs:
           swift --version
       - name: Test
         run: swift test
+      - name: Steam bridge regression tests
+        run: |
+          node scripts/test-steam-bridge.mjs
+          node scripts/test-steam-presentation.mjs
       - name: Build release binaries
         run: |
           swift build -c release --product MacGamingUncleApp

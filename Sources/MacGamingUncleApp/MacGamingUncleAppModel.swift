@@ -11,6 +11,26 @@ final class MacGamingUncleAppModel: ObservableObject {
     @Published var games: [GameRecord] = []
     @Published var steamGames: [SteamGame] = []
     @Published var steamDownloads: [SteamGame] = []
+    @Published var steamLibraries: [SteamLibraryLocation] = []
+    @Published var showSteamStorage = false
+    @Published var pendingSteamInstall: SteamInstallTarget?
+    @Published private(set) var isManagingSteamStorage = false
+    @Published private(set) var steamStorageError: String?
+    var preferredSteamLibraryID: String? { UserDefaults.standard.string(forKey:"preferredSteamLibraryID") }
+    @Published private(set) var isOpeningSteamClient = false
+    @Published var steamClientNotice: String?
+    @Published var steamInstallationRequests: [UInt64: SteamInstallationRequestState] = [:]
+    @Published private(set) var steamBridgeDownloads: [UInt64: SteamBridgeDownload] = [:]
+    @Published private(set) var steamAuthenticationRequired = false
+    @Published private(set) var uninstallingSteamAppIDs: Set<UInt64> = []
+    @Published private(set) var steamDownloadSpeeds: [UInt64: Double] = [:]
+    private var downloadByteSamples: [UInt64: (UInt64, Date)] = [:]
+    private var steamDownloadBridge: SteamDownloadBridge?
+    private var steamBridgeRoot: URL?
+    private var steamBridgePoll: Task<Void, Never>?
+    private var submittingSteamInstall = false
+    private var backgroundSteamWindowTask: Task<Void, Never>?
+    private var steamInstallSubmittedAt: [UInt64: Date] = [:]
     @Published var gameLaunchStates: [UInt64: GameLaunchState] = [:]
     private var gameLaunchMonitors: [UInt64: Task<Void, Never>] = [:]
     @Published var steamAccountGames: [SteamAccountGame] = []
@@ -422,62 +442,10 @@ final class MacGamingUncleAppModel: ObservableObject {
     }
 
     func launchSteam(appID: UInt64? = nil) async {
-        if appID == nil, steamSessionManager.state == .running,
-           let bottle = steamBottle, SteamCompatibilityManager.isLoggedOn(in: bottle) {
-            syncSteamLibrary()
-            requestedDestination = "library"
-            return
-        }
-        await perform(appID == nil ? L("正在打开 Steam…") : L("正在通过 Steam 启动游戏…")) {
-            guard let runtime = self.gamingWineRuntime,
-                  let bottle = self.steamBottle,
-                  let executable = self.steamExecutable else {
-                throw IndieError.notFound(L("尚未完成 Steam 安装"))
-            }
-            let provider = WineRuntimeProvider(manifest: runtime.manifest, root: runtime.root)
-            guard let wrapper = SteamCompatibilityManager.bundledWrapperURL() else {
-                throw IndieError.notFound(L("Mac Gaming Uncle 缺少 Steam 界面兼容组件，请重新安装应用"))
-            }
-            await provider.stopBottle(bottle)
-            self.steamSessionManager.didStop()
-            try await provider.prepareBottleForInstaller(bottle)
-            try await provider.configureControllerSupport(in: bottle)
-            _ = try SteamCompatibilityManager.prepare(bottle: bottle, wrapper: wrapper)
-            let analysis = GameAnalysis(
-                identity: GameIdentity(steamAppID: appID, executableName: "steam.exe"),
-                architecture: .x86_64, directX: .none, antiCheat: .none, importedLibraries: []
-            )
-            let environment = [
-                "LANG": "zh_CN.UTF-8",
-                "LC_ALL": "zh_CN.UTF-8",
-                "WINEDEBUG": "-all",
-                "WINEMSYNC": "1",
-                // Renderer bridges are installed in this shared Steam bottle,
-                // but Steam/CEF must stay on Wine builtins. The selected game
-                // gets its own renderer overrides in gamePlan below.
-                "WINEDLLOVERRIDES": "mscoree,mshtml=;winedbg.exe=d;dxgi,d3d10,d3d10core,d3d11,d3d12=b",
-            ]
-            let profile = LaunchProfile(
-                runtimeID: runtime.manifest.id,
-                preferredRenderer: .wineD3D,
-                arguments: SteamCompatibilityManager.launchArguments(appID: appID),
-                environment: environment
-            )
-            let plan = try LaunchPlanBuilder.build(
-                executable: executable,
-                windowsExecutablePath: try WinePath.windowsPath(for: executable, in: bottle),
-                bottle: bottle, profile: profile, analysis: analysis,
-                recipe: nil, installed: InstalledRenderers(available: [.wineD3D])
-            )
-            let log = self.paths.logs.appendingPathComponent("\(plan.id.uuidString)-steam.log")
-            self.status = appID == nil ? L("Steam 正在运行；请登录并安装游戏") : L("游戏正在运行")
-            _ = try await provider.launchDetached(plan, logURL: log)
-            self.steamSessionManager.didLaunch(
-                .init(bottleID: bottle.id, runtimeID: runtime.manifest.id,
-                      environment: plan.environment, virtualDesktop: nil), reused: false
-            )
-            try self.scanDefaultSteamLibrary()
-            self.status = L("Steam 已打开，登录后自动同步游戏库")
+        if let appID {
+            await sendSteamURI("steam://rungameid/\(appID)", status: L("正在通过 Steam 启动游戏…"))
+        } else {
+            await openSteamClient()
         }
     }
 
@@ -485,7 +453,9 @@ final class MacGamingUncleAppModel: ObservableObject {
         guard !isWorking, gameLaunchStates[game.appID]?.blocksLaunch != true else { return }
         gameLaunchStates[game.appID] = .preparing
         await perform(L("正在为 \(game.name) 选择最佳图形后端…")) {
-            guard (try? SteamScanner.refreshed(game).isReadyToPlay) == true else {
+            guard SteamDownloadBridge.permitsPlay(
+                manifestReady: (try? SteamScanner.refreshed(game).isReadyToPlay) == true,
+                download: self.steamBridgeDownloads[game.appID]) else {
                 try self.scanDefaultSteamLibrary()
                 throw IndieError.invalidData(L("游戏尚未安装完成，请等待 Steam 完成下载和校验"))
             }
@@ -806,8 +776,258 @@ final class MacGamingUncleAppModel: ObservableObject {
         } catch { present(error) }
     }
 
-    func installSteamGame(appID: UInt64) async {
-        await sendSteamURI("steam://install/\(appID)", status: L("正在通过 Steam 安装游戏…"))
+    func installSteamGame(appID: UInt64, library: SteamLibraryLocation? = nil) async {
+        guard appID > 0, appID <= UInt32.max, !submittingSteamInstall, !isWorking,
+              steamInstallationRequests[appID]?.blocksSubmission != true else { return }
+        let owned = steamAccountGames.contains { $0.appID == appID } ||
+            steamGames.contains { $0.appID == appID } || steamDownloads.contains { $0.appID == appID }
+        guard owned else {
+            await openSteamClient(.store(appID), notice: L("请先在 Steam 中获取游戏，然后返回安装"))
+            return
+        }
+        guard let library else {
+            refreshSteamLibraryLocations()
+            steamStorageError = nil
+            pendingSteamInstall = .init(id:appID,name:steamAccountGames.first(where: { $0.appID == appID })?.name ?? String(appID))
+            return
+        }
+        guard library.isWritable, let root = library.root, let bottle = steamBottle,
+              WineDrivePaths.hostURL(for:library.windowsPath,bottleRoot:bottle.root)?.resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path else {
+            steamClientNotice = L("目标磁盘不可用或只读，请重新选择游戏库")
+            return
+        }
+        UserDefaults.standard.set(library.id,forKey:"preferredSteamLibraryID")
+        submittingSteamInstall = true
+        steamInstallationRequests[appID] = .preparing
+        defer { submittingSteamInstall = false }
+        await sendSteamURI("", status: L("正在连接 Steam 后台…"), showWindow: false)
+        guard let bridge = downloadBridge() else {
+            steamInstallationRequests[appID] = .failed
+            return
+        }
+        do {
+            var connected = false
+            for _ in 0..<12 {
+                do { _ = try await bridge.downloads(); connected = true; break }
+                catch { try await Task.sleep(for: .seconds(1)) }
+            }
+            guard connected else { throw IndieError.notFound(L("Steam 后台连接尚未就绪")) }
+            guard try await bridge.isAuthenticated() else {
+                steamAuthenticationRequired = true
+                steamInstallationRequests[appID] = .confirmation
+                steamClientNotice = L("Steam 尚未联机，请打开 Steam 客户端恢复连接后重试")
+                return
+            }
+            guard let steam = steamExecutable else { throw IndieError.notFound("No Steam executable") }
+            let snapshot = try await SteamClientProcessSnapshot.read(steamExecutable: steam)
+            try await bridge.beginBackgroundPresentation()
+            var presentationRetained = false
+            defer {
+                if !presentationRetained { Task { await bridge.endBackgroundPresentation() } }
+            }
+            SteamClientActivation.hide(snapshot)
+            try? await bridge.hideClientWindow()
+            let installResult = try await bridge.install(appID: appID,libraryPath:library.windowsPath)
+            switch installResult {
+            case .loginRequired:
+                steamAuthenticationRequired = true
+                steamInstallationRequests[appID] = .confirmation
+                steamClientNotice = L("Steam 尚未联机，请打开 Steam 客户端恢复连接后重试")
+            case .submitted:
+                steamAuthenticationRequired = false
+                steamInstallationRequests[appID] = .waiting
+                steamInstallSubmittedAt[appID] = Date()
+                backgroundSteamWindowTask?.cancel()
+                presentationRetained = true
+                backgroundSteamWindowTask = Task { [weak self] in
+                    defer { Task { await bridge.endBackgroundPresentation() } }
+                    var settled: Date?
+                    while !Task.isCancelled {
+                        guard let self else { return }
+                        try? await bridge.touchBackgroundPresentation()
+                        let pending = self.steamDownloads.contains(where: { $0.appID == appID }) ||
+                            self.steamInstallationRequests[appID]?.blocksSubmission == true
+                        if pending { settled = nil }
+                        else if settled == nil { settled = Date() }
+                        if let settled, Date().timeIntervalSince(settled) > 3 { return }
+                        do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                    }
+                }
+                steamClientNotice = L("已提交给 Steam，正在等待下载和校验；完成前不会启用开始游戏")
+            case .needsInteraction:
+                steamInstallationRequests[appID] = .confirmation
+                steamClientNotice = L("Steam 需要额外确认。仅在你点击“在 Steam 中查看”时打开客户端")
+            case .failed(let code):
+                try? scanDefaultSteamLibrary()
+                if steamGames.contains(where: { $0.appID == appID }) {
+                    steamInstallationRequests[appID] = nil
+                    steamClientNotice = L("游戏已完成安装和校验")
+                } else if code == 12 || code == 15 {
+                    steamInstallationRequests[appID] = .failed
+                    steamClientNotice = code == 12 ? L("所选磁盘空间不足，请重新选择游戏库") : L("目标磁盘不可用或只读，请重新选择游戏库")
+                } else if steamDownloads.contains(where: { $0.appID == appID }) {
+                    steamInstallationRequests[appID] = .waiting
+                    steamInstallSubmittedAt[appID] = Date()
+                    steamClientNotice = L("Steam 正在后台下载，完成校验后即可开始游戏")
+                } else {
+                    steamInstallationRequests[appID] = .failed
+                    steamClientNotice = [6,7].contains(code)
+                        ? L("Steam 下载服务连接失败，后台重试后仍未恢复。请稍后重试；客户端不会自动弹出")
+                        : L("Steam 安装失败，错误码 \(code)。请重试或手动在 Steam 中查看")
+                }
+            }
+        } catch {
+            steamInstallationRequests[appID] = .failed
+            if let bottle = steamBottle, !SteamCompatibilityManager.isLoggedOn(in: bottle) {
+                steamInstallationRequests[appID] = .confirmation
+                steamClientNotice = L("请先登录 Steam，登录后返回重试安装")
+            } else {
+                steamClientNotice = L("Steam 后台连接失败。可重试或打开 Steam；更新兼容组件后需退出并重新打开 Steam")
+            }
+        }
+        syncSteamLibrary()
+    }
+
+    private func downloadBridge() -> SteamDownloadBridge? {
+        guard let root = steamExecutable?.deletingLastPathComponent() else { return nil }
+        if steamBridgeRoot != root {
+            steamBridgeRoot = root
+            steamDownloadBridge = SteamDownloadBridge(steamDirectory: root)
+            steamBridgeDownloads = [:]
+        }
+        return steamDownloadBridge
+    }
+
+    func refreshSteamLibraryLocations() {
+        guard let steam = steamExecutable?.deletingLastPathComponent(), let bottle = steamBottle else { return }
+        steamLibraries = SteamLibraryLocation.load(steamRoot:steam,bottleRoot:bottle.root)
+    }
+
+    func offlineLibrary(for appID: UInt64) -> SteamLibraryLocation? {
+        guard !steamGames.contains(where: { $0.appID == appID }) else { return nil }
+        return steamLibraries.first { !$0.isAvailable && $0.appIDs.contains(appID) }
+    }
+
+    func chooseSteamLibraryFolder() async {
+        guard !isWorking, !isManagingSteamStorage, !submittingSteamInstall else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = L("挂载游戏库")
+        panel.message = L("选择新建的游戏库文件夹，或已有 SteamLibrary／steamapps 文件夹。不会移动或删除游戏文件。")
+        guard panel.runModal() == .OK, var root = panel.url else { return }
+        if root.lastPathComponent.lowercased() == "steamapps" { root.deleteLastPathComponent() }
+        root = root.standardizedFileURL.resolvingSymlinksInPath()
+        let volumeRoot = (try? root.resourceValues(forKeys:[.volumeURLKey]))?.volume
+        guard root.path != "/", root.path != "/Volumes", root.path != volumeRoot?.path,
+              !root.pathComponents.contains("steamapps"),
+              FileManager.default.isWritableFile(atPath:root.path) else {
+            steamStorageError = L("请选择可写的游戏库根目录，不要选择磁盘根目录或游戏内部文件夹")
+            return
+        }
+        isManagingSteamStorage = true; steamStorageError = nil
+        defer { isManagingSteamStorage = false }
+        await sendSteamURI("",status:L("正在连接 Steam 后台…"),showWindow:false)
+        do {
+            guard let bottle = steamBottle, let bridge = downloadBridge() else { throw IndieError.notFound(L("Steam 后台连接尚未就绪")) }
+            let windowsPath = try WinePath.windowsPath(for:root,in:bottle)
+            try await bridge.addLibrary(windowsPath:windowsPath)
+            refreshSteamLibraryLocations()
+            syncSteamLibrary()
+        } catch { steamStorageError = error.localizedDescription }
+    }
+
+    func uninstallSteamGame(_ game: SteamGame) async {
+        guard !isWorking, !submittingSteamInstall, gameLaunchStates[game.appID]?.blocksLaunch != true,
+              !uninstallingSteamAppIDs.contains(game.appID) else { return }
+        uninstallingSteamAppIDs.insert(game.appID)
+        defer { uninstallingSteamAppIDs.remove(game.appID) }
+        await sendSteamURI("", status: L("正在连接 Steam 后台…"), showWindow: false)
+        await perform(L("正在卸载…")) {
+            guard let bridge = self.downloadBridge(), let bottle = self.steamBottle else {
+                throw IndieError.notFound(L("Steam 后台连接尚未就绪"))
+            }
+            guard FileManager.default.fileExists(atPath:game.manifestURL.path) else {
+                throw IndieError.notFound(L("游戏库不可访问，请连接磁盘后再卸载"))
+            }
+            if let executable = try? SteamExecutableResolver.shippingExecutable(for: game) {
+                let path = try WinePath.windowsPath(for: executable, in: bottle)
+                guard try await !GameProcessProbe.isRunning(windowsPath: path) else {
+                    throw IndieError.invalidArgument(L("请先退出游戏，再进行卸载"))
+                }
+            }
+            try await bridge.uninstall(appID: game.appID)
+            for _ in 0..<120 {
+                if !FileManager.default.fileExists(atPath: game.manifestURL.path) {
+                    guard FileManager.default.fileExists(atPath:game.manifestURL.deletingLastPathComponent().path) else {
+                        throw IndieError.notFound(L("磁盘已断开，尚未确认卸载完成"))
+                    }
+                    self.steamInstallationRequests[game.appID] = nil
+                    self.steamBridgeDownloads[game.appID] = nil
+                    self.steamDownloadSpeeds[game.appID] = nil
+                    try self.scanDefaultSteamLibrary()
+                    self.steamClientNotice = L("游戏已卸载，可随时重新安装")
+                    return
+                }
+                try await Task.sleep(for: .milliseconds(500))
+            }
+            throw IndieError.notFound(L("尚未确认卸载完成，请在 Steam 中查看"))
+        }
+    }
+
+    private func pollSteamDownloads() {
+        guard steamBridgePoll == nil, let bridge = downloadBridge() else { return }
+        steamBridgePoll = Task { [weak self] in
+            guard let self else { return }
+            defer { self.steamBridgePoll = nil }
+            do {
+                let values = try await bridge.downloads()
+                self.steamAuthenticationRequired = !(try await bridge.isAuthenticated())
+                self.steamBridgeDownloads = Dictionary(values.map { ($0.appID, $0) }, uniquingKeysWith: { _, b in b })
+            } catch {
+                // Never keep an obsolete percent/paused state after disconnect or client restart.
+                self.steamBridgeDownloads = [:]
+            }
+            try? self.scanDefaultSteamLibrary()
+            let now = Date()
+            let pendingIDs = Set(self.steamDownloads.map(\.appID))
+            self.downloadByteSamples = self.downloadByteSamples.filter { pendingIDs.contains($0.key) }
+            self.steamDownloadSpeeds = self.steamDownloadSpeeds.filter { pendingIDs.contains($0.key) }
+            for game in self.steamDownloads {
+                guard let bytes = game.bytesDownloaded else { continue }
+                if let previous = self.downloadByteSamples[game.appID], now.timeIntervalSince(previous.1) > 0 {
+                    self.steamDownloadSpeeds[game.appID] = bytes >= previous.0
+                        ? Double(bytes - previous.0) / now.timeIntervalSince(previous.1) : 0
+                }
+                self.downloadByteSamples[game.appID] = (bytes,now)
+            }
+            for id in Array(self.steamInstallationRequests.keys) {
+                if self.steamGames.contains(where: { $0.appID == id }) {
+                    self.steamInstallationRequests[id] = nil
+                    self.steamInstallSubmittedAt[id] = nil
+                    if self.steamClientNotice == L("已提交给 Steam，正在等待下载和校验；完成前不会启用开始游戏") ||
+                        self.steamClientNotice == L("Steam 正在后台下载，完成校验后即可开始游戏") {
+                        self.steamClientNotice = L("游戏已完成安装和校验")
+                    }
+                } else if let item = self.steamBridgeDownloads[id], item.errorCode > 1 {
+                    self.steamInstallationRequests[id] = .failed
+                } else if self.steamInstallationRequests[id] == .waiting,
+                          self.steamDownloads.contains(where: { $0.appID == id }) == false,
+                          self.steamBridgeDownloads[id] == nil,
+                          let submitted = self.steamInstallSubmittedAt[id],
+                          Date().timeIntervalSince(submitted) > 120 {
+                    self.steamInstallationRequests[id] = .failed
+                }
+            }
+        }
+    }
+
+    func openSteamClient(_ destination: SteamClientDestination = .library, notice: String? = nil) async {
+        backgroundSteamWindowTask?.cancel()
+        backgroundSteamWindowTask = nil
+        if let bridge = downloadBridge() { await bridge.endBackgroundPresentation(showPending:true) }
+        await sendSteamURI(destination.uri, status: L("正在打开 Steam 客户端…"),
+            completion: notice ?? L("请求已发送，请在 Steam 客户端中继续；若未显示窗口，可再次点击 Steam 客户端"))
     }
 
     func loadNativeSteamStore(force: Bool = false) async {
@@ -1070,12 +1290,17 @@ final class MacGamingUncleAppModel: ObservableObject {
 
     private func scanDefaultSteamLibrary() throws {
         guard let bottle = steamBottle else { return }
+        refreshSteamLibraryLocations()
         let previousIDs = steamAccountGames.map(\.appID)
         let steamApps = bottle.root.appendingPathComponent("drive_c/Program Files (x86)/Steam/steamapps", isDirectory: true)
         let records = FileManager.default.fileExists(atPath: steamApps.path)
             ? try SteamScanner.scan(steamApps: steamApps) : []
-        steamGames = records.filter(\.isReadyToPlay)
-        steamDownloads = records.filter { !$0.isReadyToPlay && $0.appID != 228980 }
+        steamGames = records.filter {
+            SteamDownloadBridge.permitsPlay(manifestReady: $0.isReadyToPlay, download: steamBridgeDownloads[$0.appID])
+        }
+        steamDownloads = records.filter {
+            !SteamDownloadBridge.permitsPlay(manifestReady: $0.isReadyToPlay, download: steamBridgeDownloads[$0.appID]) && $0.appID != 228980
+        }
         steamAccountGames = try SteamAccountLibraryScanner.scan(
             steamRoot: SteamCompatibilityManager.steamRoot(in: bottle),
             installed: records
@@ -1097,6 +1322,7 @@ final class MacGamingUncleAppModel: ObservableObject {
 
     func syncSteamLibrary() {
         guard !onboardingBusy, !isWorking else { return }
+        pollSteamDownloads()
         do {
             try scanDefaultSteamLibrary()
             if !steamAccountGames.isEmpty {
@@ -1141,57 +1367,79 @@ final class MacGamingUncleAppModel: ObservableObject {
         }
     }
 
-    private func sendSteamURI(_ uri: String, status initialStatus: String) async {
+    private func sendSteamURI(_ uri: String, status initialStatus: String, completion: String? = nil,
+                              showWindow: Bool = true) async {
+        guard !isOpeningSteamClient else { return }
+        guard !isWorking else {
+            steamClientNotice = L("正在处理其他操作，请稍后打开 Steam 客户端");
+            return
+        }
+        isOpeningSteamClient = true
+        steamClientNotice = initialStatus
+        defer { isOpeningSteamClient = false }
         await perform(initialStatus) {
             guard let runtime = self.gamingWineRuntime,
-                  let bottle = self.steamBottle,
-                  let steam = self.steamExecutable else {
+                  let bottle = self.steamBottle, let steam = self.steamExecutable else {
                 throw IndieError.notFound(L("尚未完成 Steam 安装"))
             }
             let provider = WineRuntimeProvider(manifest: runtime.manifest, root: runtime.root)
-            let hasReusableSteam = self.steamSessionManager.state == .running &&
-                SteamCompatibilityManager.isLoggedOn(in: bottle)
-            if !hasReusableSteam {
-                self.steamSessionManager.didStop()
-                try await provider.prepareBottleForInstaller(bottle)
-                try await provider.configureControllerSupport(in: bottle)
+            let before = try await SteamClientProcessSnapshot.read(steamExecutable: steam)
+            let previous = SteamClientDestination.reusableDescriptor(
+                self.steamSessionManager.currentDescriptor, bottleID: bottle.id,
+                runtimeID: runtime.manifest.id, processExists: before.hasClients)
+            // Never stop Wine or reconfigure its registry for a UI/navigation request.
+            // Only repair CEF before a cold launch, when no mapped helper is running.
+            if !before.hasClients {
                 guard let wrapper = SteamCompatibilityManager.bundledWrapperURL() else {
                     throw IndieError.notFound(L("缺少 Steam 界面兼容组件"))
                 }
-                _ = try SteamCompatibilityManager.prepare(bottle: bottle, wrapper: wrapper)
+                _ = try SteamCompatibilityManager.prepare(bottle: bottle, wrapper: wrapper,
+                                                         steamDirectory: steam.deletingLastPathComponent())
             }
-            let analysis = GameAnalysis(
-                identity: .init(executableName: "steam.exe"), architecture: .x86_64,
-                directX: .none, antiCheat: .none, importedLibraries: []
-            )
-            let environment = hasReusableSteam
-                ? (self.steamSessionManager.currentDescriptor?.environment ?? [:])
-                : ["LANG": "zh_CN.UTF-8", "LC_ALL": "zh_CN.UTF-8", "WINEDEBUG": "-all"]
-            let profile = LaunchProfile(
-                runtimeID: runtime.manifest.id,
-                preferredRenderer: .wineD3D,
-                syncBackend: .wineserver,
-                arguments: ["-noverifyfiles", "-no-cef-sandbox", "-silent", uri],
-                environment: environment
-            )
-            let plan = try LaunchPlanBuilder.build(
-                executable: steam,
+            let environment = previous?.environment ?? [
+                "LANG": "zh_CN.UTF-8", "LC_ALL": "zh_CN.UTF-8", "WINEDEBUG": "-all",
+                "WINEDLLOVERRIDES": "mscoree,mshtml=;winedbg.exe=d;dxgi,d3d10,d3d10core,d3d11,d3d12=b"
+            ]
+            let profile = LaunchProfile(runtimeID: runtime.manifest.id, preferredRenderer: .wineD3D,
+                syncBackend: environment["WINEMSYNC"] == "1" ? .msync : .wineserver,
+                arguments: SteamCompatibilityManager.launchArguments(silent: !showWindow) + (uri.isEmpty ? [] : [uri]),
+                environment: environment)
+            let plan = try LaunchPlanBuilder.build(executable: steam,
                 windowsExecutablePath: try WinePath.windowsPath(for: steam, in: bottle),
-                bottle: bottle, profile: profile, analysis: analysis,
-                recipe: nil, installed: .init(available: [.wineD3D])
-            )
-            let log = self.paths.logs.appendingPathComponent("\(plan.id)-steam-uri.log")
-            _ = try await provider.launchDetached(plan, logURL: log)
-            if !hasReusableSteam {
-                self.steamSessionManager.didLaunch(
-                    .init(
-                        bottleID: bottle.id, runtimeID: runtime.manifest.id,
-                        environment: plan.environment, virtualDesktop: nil
-                    ),
-                    reused: false
-                )
+                bottle: bottle, profile: profile,
+                analysis: .init(identity: .init(executableName: "steam.exe"), architecture: .x86_64,
+                                directX: .none, antiCheat: .none, importedLibraries: []),
+                recipe: nil, installed: .init(available: [.wineD3D]))
+            let log = self.paths.logs.appendingPathComponent("\(plan.id)-steam-client.log")
+            if showWindow || !before.hasClients {
+                _ = try await provider.launchDetached(plan, logURL: log)
             }
-            self.status = L("Steam 已接收请求")
+            // Focus only processes mapped to this exact Steam installation, not other bottles/games.
+            var after = try await SteamClientProcessSnapshot.read(steamExecutable: steam)
+            for _ in 0..<4 where after.steamPIDs.isEmpty {
+                try await Task.sleep(for: .milliseconds(400))
+                after = try await SteamClientProcessSnapshot.read(steamExecutable: steam)
+            }
+            if !after.steamPIDs.isEmpty {
+                self.steamSessionManager.didLaunch(previous ?? .init(bottleID: bottle.id,
+                    runtimeID: runtime.manifest.id, environment: plan.environment, virtualDesktop: nil),
+                    reused: previous != nil)
+            } else {
+                self.steamSessionManager.didStop()
+            }
+            for attempt in 0..<(showWindow ? 12 : 0) {
+                if attempt == 0, let bridge = self.downloadBridge() { try? await bridge.fitClientWindow() }
+                if SteamClientActivation.show(after) { break }
+                if attempt == 11 { break }
+                try await Task.sleep(for: .milliseconds(500))
+                after = try await SteamClientProcessSnapshot.read(steamExecutable: steam)
+            }
+            self.status = completion ?? (showWindow
+                ? L("请求已发送，请在 Steam 客户端中继续；若未显示窗口，可再次点击 Steam 客户端")
+                : L("正在连接 Steam 后台…"))
+            self.steamClientNotice = self.status
         }
+        if lastError != nil { steamClientNotice = L("未能打开 Steam 客户端，请检查错误提示后重试") }
+        syncSteamLibrary()
     }
 }

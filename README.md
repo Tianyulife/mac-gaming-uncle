@@ -3,11 +3,11 @@
   <h1>Mac Gaming Uncle</h1>
   <p><strong>Run Windows games you own on Apple Silicon Macs.</strong></p>
   <p>Native SwiftUI · Wine · Apple D3DMetal · MetalFX · DXVK</p>
-  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg">Download the 0.4.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.4.0">Release notes</a></p>
+  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg">Download the 0.5.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.5.0">Release notes</a></p>
   <p>English · <a href="README.zh-CN.md">简体中文</a></p>
 </div>
 
-The 0.4.0 research preview includes an experimental [universal 2× frame-interpolation prototype](docs/FRAME_INTERPOLATION.md), off by default, for macOS 26 windowed/borderless games. It does not guarantee doubled FPS; 1080p support and moving-HUD quality remain unresolved. Internal 4× and static-detail experiments are not enabled by the app. Its architecture was informed by [MetalDuck](https://github.com/Lospi/MetalDuck) and Apple's public VideoToolbox/ScreenCaptureKit APIs; no LSFG model is bundled.
+The 0.5.0 research preview includes an experimental [universal 2× frame-interpolation prototype](docs/FRAME_INTERPOLATION.md), off by default, for macOS 26 windowed/borderless games. It does not guarantee doubled FPS; 1080p support and moving-HUD quality remain unresolved. Internal 4× and static-detail experiments are not enabled by the app. Its architecture was informed by [MetalDuck](https://github.com/Lospi/MetalDuck) and Apple's public VideoToolbox/ScreenCaptureKit APIs; no LSFG model is bundled.
 
 <p align="center">
   <img src="Assets/MacGamingUncleHero.png" width="100%" alt="Uncle was not wrong—he was simply early.">
@@ -26,9 +26,9 @@ Open ** → About This Mac**. You need an Apple Silicon (M-series) Mac with *
 
 ### 2. Download the installer
 
-Select **[Download Mac Gaming Uncle 0.4.0 (DMG)](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg)**.
+Select **[Download Mac Gaming Uncle 0.5.0 (DMG)](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg)**.
 
-Alternatively, open the [Release page](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.4.0) and choose `Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg` under **Assets**. `Source code`, `.sha256`, and the Wine `.tar.xz` are source archives, checksums, and a runtime that the app downloads automatically—not the app installer.
+Alternatively, open the [Release page](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.5.0) and choose `Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg` under **Assets**. `Source code`, `.sha256`, and the Wine `.tar.xz` are source archives, checksums, and a runtime that the app downloads automatically—not the app installer.
 
 ### 3. Install and open the app
 
@@ -52,7 +52,9 @@ The initial Steam update can take several minutes. After signing in, return to M
 
 ### 5. Install and play a game
 
-Open **Library**, select a game you own, and choose **Install**. Follow Steam's prompts and wait for the download to finish, then choose **Start Game**. Browsing a title in the Store does not grant ownership; obtain the appropriate license through Steam first.
+Open **Library**, select a game you own, and choose **Install**. Select a target library and confirm. Steam downloads in the background; the app shows progress and speed, and enables **Start Game** only after installation and verification. Extra confirmation or login may require the explicit **Steam Client** entry. Browsing the Store does not grant ownership; obtain the appropriate license through Steam first.
+
+Use **Storage & Libraries** to attach a library on another mounted disk, and **Uninstall Game** in game details to remove an installation with confirmation. See the [storage guide](docs/STEAM_STORAGE.md). Version 0.5.0 also fixes stale Steam connection status and installation popups; see the [release notes](docs/releases/0.5.0.md).
 
 Start with default settings. Open **Game Settings** when you need to adjust resolution, HUD, or controller options. Pair a controller with macOS first, then inspect it using the controller shortcut in the top bar. The first game launch may take longer while graphics caches are built. A library listing does not mean a game has been verified compatible.
 
@@ -81,7 +83,7 @@ The official Mac Gaming Uncle project and its official releases will remain perm
 
 ## Project status
 
-Mac Gaming Uncle is currently a `0.4.0` research preview for Apple Silicon and macOS 15 or later. It now provides a Steam-client shell, native Store and Library, per-game settings, a reusable global Steam session, and an SDL/XInput controller launch path.
+Mac Gaming Uncle is currently a `0.5.0` research preview for Apple Silicon and macOS 15 or later. It now provides a Steam-client shell, native Store and Library, per-game settings, a reusable global Steam session, and an SDL/XInput controller launch path.
 
 Hardware validation: Apple M3 Max, macOS 26.6.2, GPTK 4.0 beta 2, and Mac Gaming Uncle Wine 11.0.2. `Grim Dawn 1.3.0.8 (x64)` has been validated with its complete Chinese UI, Steam integration, XInput controller support, and Apple's in-game Metal HUD (D3D11, approximately 114 FPS); `Ruins of Dawn` reaches its main menu.
 
@@ -156,7 +158,7 @@ Mac Gaming Uncle composes, verifies, and launches these layers. It does not modi
 
 For developers only: this requires Xcode 26 or a compatible full Swift 6 toolchain. Other users should follow the Beginner installation guide above.
 
-If you do not need a development environment, download the mount-verified [Mac Gaming Uncle 0.4.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg) and verify it with the adjacent [SHA-256 file](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.4.0/Mac-Gaming-Uncle-0.4.0-macOS-arm64.dmg.sha256).
+If you do not need a development environment, download the mount-verified [Mac Gaming Uncle 0.5.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg) and verify it with the adjacent [SHA-256 file](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.5.0/Mac-Gaming-Uncle-0.5.0-macOS-arm64.dmg.sha256).
 
 ```bash
 git clone https://github.com/enginefuture/mac-gaming-uncle.git

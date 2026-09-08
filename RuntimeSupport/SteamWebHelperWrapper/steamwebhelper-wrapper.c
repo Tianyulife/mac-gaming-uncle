@@ -19,6 +19,7 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include "bridge-pipe.h"
 
 #define REAL_BINARY L"steamwebhelper_real.exe"
 #define EXTRA_FLAGS L"--disable-gpu --in-process-gpu --no-sandbox"
@@ -56,10 +57,16 @@ int wmain(void)
     wcscat(real, REAL_BINARY);
 
     const wchar_t *tail = forwarded_arguments();
-    size_t command_capacity = wcslen(real) + wcslen(EXTRA_FLAGS) + wcslen(tail) + 8;
+    wchar_t bridge_flags[256]=L"";
+    wchar_t display_flags[128]=L"";
+    if(!wcsstr(tail,L"--type="))mgu_display_flags(self,display_flags,128);
+    HANDLE child_read=NULL,child_write=NULL;
+    BOOL bridge = !wcsstr(tail,L"--type=") &&
+        mgu_create_pipes(self,bridge_flags,256,&child_read,&child_write);
+    size_t command_capacity = wcslen(real) + wcslen(EXTRA_FLAGS) + wcslen(tail) + wcslen(bridge_flags) + wcslen(display_flags) + 12;
     wchar_t *command = (wchar_t *)calloc(command_capacity, sizeof(wchar_t));
     if (!command) { free(real); return 4; }
-    _snwprintf(command, command_capacity, L"\"%ls\" %ls %ls", real, EXTRA_FLAGS, tail);
+    _snwprintf(command, command_capacity, L"\"%ls\" %ls %ls %ls %ls", real, EXTRA_FLAGS, tail,bridge_flags,display_flags);
 
     STARTUPINFOW startup;
     PROCESS_INFORMATION process;
@@ -68,14 +75,21 @@ int wmain(void)
     startup.cb = sizeof(startup);
 
     BOOL launched = CreateProcessW(real, command, NULL, NULL, TRUE, 0, NULL, NULL, &startup, &process);
+    if(child_read)CloseHandle(child_read);
+    if(child_write)CloseHandle(child_write);
     free(command);
     free(real);
-    if (!launched) return 5;
+    if (!launched) { mgu_close_pipes(); return 5; }
+    HANDLE relay=bridge ? CreateThread(NULL,0,mgu_relay,NULL,0,NULL) : NULL;
+    if(*display_flags){mgu_ui_pid=process.dwProcessId;HANDLE fit=CreateThread(NULL,0,mgu_fit_windows,NULL,0,NULL);if(fit)CloseHandle(fit);}
 
     WaitForSingleObject(process.hProcess, INFINITE);
     DWORD exit_code = 1;
     GetExitCodeProcess(process.hProcess, &exit_code);
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
+    // The child has exited; its pipe closes and the relay removes its heartbeat.
+    if(relay){WaitForSingleObject(relay,2000);CloseHandle(relay);}
+    mgu_close_pipes();
     return (int)exit_code;
 }
