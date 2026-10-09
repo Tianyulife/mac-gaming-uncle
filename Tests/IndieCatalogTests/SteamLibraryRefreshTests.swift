@@ -21,12 +21,15 @@ final class SteamLibraryRefreshTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("steamapps").path))
     }
 
-    func testLocalAccountCacheReadOnly() throws {
+    func testLocalAccountCacheReadOnly() async throws {
         guard let path = ProcessInfo.processInfo.environment["INDIE_TEST_STEAM_ROOT"] else {
             throw XCTSkip("Opt-in read-only check of a local Steam cache")
         }
         let games = try SteamAccountLibraryScanner.scan(steamRoot: URL(fileURLWithPath: path), installed: [])
         XCTAssertFalse(games.isEmpty)
-        print("Local Steam cache: \(games.count) games")
+        let snapshot = try await SteamLibraryReader().read(
+            steamRoot: URL(fileURLWithPath: path), bottleRoot: URL(fileURLWithPath: path), force: true)
+        XCTAssertTrue(Set(games.map(\.appID)).isSubset(of: Set(snapshot.accountGames.map(\.appID))))
+        print("Local Steam cache: \(snapshot.accountGames.count) games")
     }
 }

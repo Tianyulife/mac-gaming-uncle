@@ -54,7 +54,7 @@ struct ContentView: View {
         .background(WindowPlacementReader().frame(width: 0, height: 0))
         .task {
             while !Task.isCancelled {
-                model.syncSteamLibrary()
+                await model.syncSteamLibrary()
                 do { try await Task.sleep(for: .seconds(model.steamDownloads.isEmpty && model.steamInstallationRequests.isEmpty ? 5 : 1)) }
                 catch { return }
             }

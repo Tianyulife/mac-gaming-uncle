@@ -32,6 +32,14 @@ struct SteamShellLibraryView: View {
             Divider().overlay(IndiePalette.border)
             if model.steamAccountGames.isEmpty {
                 emptyState
+            } else if games.isEmpty {
+                ContentUnavailableView {
+                    Label(L("没有匹配的游戏"), systemImage: "magnifyingglass")
+                } description: {
+                    Text(L("调整搜索关键词或筛选条件"))
+                } actions: {
+                    Button(L("显示全部游戏")) { search = ""; filter = .all }
+                }
             } else {
                 HStack(spacing: 0) {
                     gameList.frame(width: 285)
@@ -61,6 +69,9 @@ struct SteamShellLibraryView: View {
                 Text(L("游戏库")).font(.system(size: 26, weight: .bold, design: .rounded))
                 Text(L("\(model.steamAccountGames.count) 款账户游戏 · \(model.steamGames.filter { $0.appID != 228980 }.count) 款已安装"))
                     .font(.caption).foregroundStyle(IndiePalette.secondaryText)
+            }
+            if model.isSteamMetadataLoading {
+                ProgressView().controlSize(.small).help(L("正在补全游戏名称与封面…"))
             }
             SteamSessionIndicator(manager: model.steamSessionManager)
             Spacer()

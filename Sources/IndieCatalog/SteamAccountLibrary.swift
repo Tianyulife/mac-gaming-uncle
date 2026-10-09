@@ -201,8 +201,10 @@ public enum SteamStoreMetadataService {
             .init(name: "l", value: AppLanguage.steamLanguage),
             .init(name: "cc", value: "cn"),
         ]
-        guard let url = components.url,
-              let (data, response) = try? await session.data(from: url),
+        guard let url = components.url else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        guard let (data, response) = try? await session.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let envelope = try? IndieJSON.decoder().decode([String: StoreEnvelope].self, from: data),
               let result = envelope[String(appID)], result.success, let details = result.data,

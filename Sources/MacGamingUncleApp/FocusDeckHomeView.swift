@@ -66,11 +66,11 @@ struct FocusDeckHomeView: View {
                     }
                     .font(.system(size: 14, weight: .medium)).foregroundStyle(Color.white.opacity(0.67))
                     HStack(spacing: 24) {
-                        Label(L("兼容性优秀"), systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(IndiePalette.green)
+                        Label(L("兼容性需实测"), systemImage: "questionmark.circle")
+                            .foregroundStyle(Color.white.opacity(0.72))
                         Label(
-                            model.steamSessionManager.state == .running ? L("云存档已同步") : L("Steam 待连接"),
-                            systemImage: model.steamSessionManager.state == .running ? "cloud.fill" : "cloud"
+                            model.steamSessionManager.state == .running ? L("Steam 已连接") : L("Steam 待连接"),
+                            systemImage: model.steamSessionManager.state == .running ? "checkmark.circle" : "network"
                         )
                         .foregroundStyle(Color.white.opacity(0.72))
                     }
@@ -237,7 +237,7 @@ struct FocusDeckHomeView: View {
         } description: {
             Text(L("Steam 登录后会自动同步游戏库，首次同步可能需要一些时间。"))
         } actions: {
-            Button(L("同步游戏库")) { model.syncSteamLibrary() }.buttonStyle(.borderedProminent)
+            Button(L("同步游戏库")) { Task { await model.syncSteamLibrary() } }.buttonStyle(.borderedProminent)
             Button(L("Steam 登录窗口")) { Task { await model.launchSteam() } }
                 .disabled(model.isWorking || model.onboardingBusy)
             Text(model.status).font(.caption).foregroundStyle(.secondary)

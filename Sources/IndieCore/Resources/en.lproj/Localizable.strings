@@ -627,3 +627,33 @@
 "只能删除应用管理的已安装 Wine 版本" = "Only installed Wine versions managed by this app can be deleted";
 
 "这个 Wine 仍在运行，请先退出游戏和 Windows Steam" = "This Wine is still running. Quit games and Windows Steam first";
+
+"正在搜索 Steam 商店…" = "Searching the Steam store…";
+
+"搜索失败" = "Search failed";
+
+"没有找到匹配的游戏" = "No matching games";
+
+"请输入至少两个字符" = "Enter at least two characters";
+
+"试试游戏的英文名或更短的关键词" = "Try the English title or a shorter search term";
+
+"即将搜索…" = "Search starting…";
+
+"返回精选" = "Back to featured";
+
+"精选游戏" = "Featured games";
+
+"没有匹配的游戏" = "No matching games";
+
+"调整搜索关键词或筛选条件" = "Change your search or filters";
+
+"显示全部游戏" = "Show all games";
+
+"正在补全游戏名称与封面…" = "Loading game names and artwork…";
+
+"兼容性需实测" = "Compatibility needs testing";
+
+"Steam 已连接" = "Steam connected";
+
+"在 Steam 中获取" = "Get it in Steam";
