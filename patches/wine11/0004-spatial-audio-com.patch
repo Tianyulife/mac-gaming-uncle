@@ -1071,7 +1071,7 @@ index 8ae37cb..edb4d62 100644
  
 -    *dyn_count = 0;
 +    assert(This->allocated_dynamic_objects <= This->max_dynamic_objects);
-+    *dyn_count = This->max_dynamic_objects - This->allocated_dynamic_objects;
++    *dyn_count = This->max_dynamic_objects;
      *frames = This->update_frames;
  
      LeaveCriticalSection(&This->lock);

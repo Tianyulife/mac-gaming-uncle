@@ -3,6 +3,7 @@
 #include <dxgi.h>
 #include <wrl/client.h>
 #include <cmath>
+#include <cwchar>
 
 using Microsoft::WRL::ComPtr;
 
@@ -12,7 +13,9 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPA
     return DefWindowProcW(window, message, wparam, lparam);
 }
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int show) {
+    const bool smoke = std::wcscmp(commandLine, L"--smoke") == 0;
+    unsigned frames = 0;
     WNDCLASSW klass{}; klass.lpfnWndProc = WindowProc; klass.hInstance = instance;
     klass.lpszClassName = L"IndieD3D11Fixture"; klass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     if (!RegisterClassW(&klass)) return 10;
@@ -28,7 +31,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     D3D_FEATURE_LEVEL level{};
     HRESULT result = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
         D3D11_SDK_VERSION, &swap, &chain, &device, &level, &context);
-    if (FAILED(result)) { MessageBoxW(window, L"D3D11CreateDeviceAndSwapChain failed", L"Indie", MB_ICONERROR); return 20; }
+    if (FAILED(result)) { if (!smoke) MessageBoxW(window, L"D3D11CreateDeviceAndSwapChain failed", L"Indie", MB_ICONERROR); return 20; }
     ComPtr<ID3D11Texture2D> buffer; ComPtr<ID3D11RenderTargetView> target;
     if (FAILED(chain->GetBuffer(0, IID_PPV_ARGS(&buffer))) || FAILED(device->CreateRenderTargetView(buffer.Get(), nullptr, &target))) return 21;
     ShowWindow(window, show);
@@ -41,6 +44,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         context->OMSetRenderTargets(1, target.GetAddressOf(), nullptr);
         context->ClearRenderTargetView(target.Get(), color);
         if (FAILED(chain->Present(1, 0))) return 22;
+        if (smoke && ++frames == 120) DestroyWindow(window);
     }
-    return 0;
+    return smoke && frames != 120 ? 23 : 0;
 }

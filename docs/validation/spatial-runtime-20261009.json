@@ -1,0 +1,530 @@
+{
+  "date": "2026-10-09",
+  "runtimeVersion": "11.0.3-spatial.2",
+  "runtimeArtifact": {
+    "name": "indie-wine-11.0.3-spatial.2-macos-x86_64.tar.xz",
+    "sha256": "b2a970c8484884130325e967f8bd230708374910add5fdc5ee52585d1d640474",
+    "size": 47004056
+  },
+  "applicationArtifact": {
+    "name": "Mac-Gaming-Uncle-spatial-test.zip",
+    "sha256": "56bf9f2cecdd7c2ed93d6611dcedf729d0e6334e3b935b6b639a3904957961b2"
+  },
+  "packageAudit": {
+    "runtimeVersion": "11.0.3-spatial.2",
+    "machOCount": 38,
+    "dependencies": [
+      "/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation",
+      "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+      "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices",
+      "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox",
+      "/System/Library/Frameworks/AudioUnit.framework/Versions/A/AudioUnit",
+      "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon",
+      "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa",
+      "/System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio",
+      "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "/System/Library/Frameworks/CoreHaptics.framework/Versions/A/CoreHaptics",
+      "/System/Library/Frameworks/CoreMIDI.framework/Versions/A/CoreMIDI",
+      "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+      "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText",
+      "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "/System/Library/Frameworks/DiskArbitration.framework/Versions/A/DiskArbitration",
+      "/System/Library/Frameworks/ForceFeedback.framework/Versions/A/ForceFeedback",
+      "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "/System/Library/Frameworks/GameController.framework/Versions/A/GameController",
+      "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+      "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+      "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL",
+      "/System/Library/Frameworks/PCSC.framework/Versions/A/PCSC",
+      "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+      "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration",
+      "/usr/lib/libSystem.B.dylib",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libresolv.9.dylib",
+      "/usr/lib/libz.1.dylib",
+      "@rpath/libgmp.10.dylib",
+      "@rpath/libhogweed.6.dylib",
+      "@rpath/libinotify.0.dylib",
+      "@rpath/libnettle.8.dylib",
+      "@rpath/ntdll.so",
+      "@rpath/win32u.so"
+    ],
+    "errors": [],
+    "passed": true
+  },
+  "productImporterIntegration": "passed; isolated Chinese and whitespace paths; WineRuntimeProvider initialization and cmd verified",
+  "defaultOutput": "Device: Dolby_5.1.2 (id 145)\nTransport: virt\nTag 0; bitmap 0; descriptions 8\nChannel 0 label 1 flags 0x2 xyz [-30,0,1]\nChannel 1 label 2 flags 0x2 xyz [30,0,1]\nChannel 2 label 3 flags 0x2 xyz [0,0,1]\nChannel 3 label 4 flags 0 xyz [0,0,0]\nChannel 4 label 5 flags 0x2 xyz [-110,0,1]\nChannel 5 label 6 flags 0x2 xyz [110,0,1]\nChannel 6 label 49 flags 0x2 xyz [-90,45,1]\nChannel 7 label 51 flags 0x2 xyz [90,45,1]\nBuffers 1\nBuffer 0 channels 8\n",
+  "smokeResults": [
+    {
+      "name": "wineboot",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 16.89,
+      "summaries": []
+    },
+    {
+      "name": "cmd-x64",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 4.65,
+      "summaries": []
+    },
+    {
+      "name": "cmd-x86",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 4.61,
+      "summaries": []
+    },
+    {
+      "name": "indie-smoke-x64",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 7.78,
+      "summaries": []
+    },
+    {
+      "name": "indie-smoke-x86",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 7.77,
+      "summaries": []
+    },
+    {
+      "name": "indie-d3d11-fixture",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 9.22,
+      "summaries": []
+    },
+    {
+      "name": "xinput",
+      "exit": 2,
+      "status": "no-controller-connected",
+      "seconds": 5.54,
+      "summaries": []
+    },
+    {
+      "name": "x86_64-spatialaudio",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 7.18,
+      "summaries": [
+        "0020:spatialaudio: 2998 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+      ]
+    },
+    {
+      "name": "x86_64-render",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 56.39,
+      "summaries": [
+        "0020:render: 4440 tests executed (177 marked as todo, 0 as flaky, 0 failures), 2 skipped.\r"
+      ]
+    },
+    {
+      "name": "x86_64-mmdevenum",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 4.92,
+      "summaries": [
+        "0020:mmdevenum: 72 tests executed (0 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+      ]
+    },
+    {
+      "name": "x86_64-propstore",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 4.68,
+      "summaries": [
+        "0020:propstore: 241 tests executed (14 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+      ]
+    },
+    {
+      "name": "i386-spatialaudio",
+      "exit": 0,
+      "status": "passed",
+      "seconds": 6.73,
+      "summaries": [
+        "00d0:spatialaudio: 2998 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+      ]
+    }
+  ],
+  "pending": [
+    "isolate and fix 11.0.3-spatial.2 Split Fiction freeze before re-enabling experimental runtime",
+    "real-game spatial audio validation after runtime regression is fixed",
+    "physical controller input",
+    "physical speaker direction",
+    "device change and sleep/wake",
+    "one-hour soak",
+    "reference toolchain reproduction",
+    "old macOS hardware validation",
+    "release signing and default metadata promotion"
+  ],
+  "d3dMetalIntegration": {
+    "status": "passed",
+    "version": "4.0b2",
+    "runtime": "11.0.3-spatial.2",
+    "durationSeconds": 27.018,
+    "fixtures": {
+      "d3d11": {
+        "exit": 0,
+        "frames": 120
+      },
+      "d3d12": {
+        "exit": 0,
+        "frames": 120
+      }
+    },
+    "loadedLibraries": [
+      "imported renderer/external/libd3dshared.dylib",
+      "imported renderer/external/D3DMetal.framework/Versions/A/D3DMetal"
+    ],
+    "logs": "work/full-runtime/d3dmetal",
+    "warnings": [
+      "Vulkan support was not built into this runtime",
+      "Apple Neural Engine Code 26; fixtures completed successfully"
+    ]
+  },
+  "localSetup": {
+    "runtimeInstalled": true,
+    "gptkInstalled": "4.0b2",
+    "steam": "updated; official login required from user",
+    "gameRun": "Split Fiction normal with 11.0.2; failed with 11.0.3-spatial.2",
+    "activeRuntime": "11.0.3-control.1 (temporary diagnostic test)",
+    "experimentalRuntime": "preserved outside active runtimes"
+  },
+  "swiftTests": {
+    "total": 98,
+    "failures": 0,
+    "skipped": 4,
+    "realRuntimeIntegration": "passed separately",
+    "d3dMetalIntegration": "passed separately"
+  },
+  "splitFictionFirstRun": {
+    "status": "failed",
+    "userObservation": "severe low frame rate followed by freeze",
+    "steamStart": "2026-10-09 20:59:28",
+    "steamEnd": "2026-10-09 21:02:31",
+    "exitCode": 1,
+    "renderer": "d3dmetal",
+    "logWarning": "Apple Neural Engine Code 26; causality unconfirmed",
+    "settingsShownAfterRun": {
+      "metalFX": "on",
+      "metal4": "on",
+      "spatialAudioDiagnostics": true
+    },
+    "baselineRetest": {
+      "metalFX": "off",
+      "metal4": "off",
+      "spatialAudioDiagnostics": false,
+      "result": "failed; user reports continued freeze"
+    }
+  },
+  "splitFictionRuntimeComparison": {
+    "status": "baseline passed; experimental runtime regression",
+    "baselineRuntime": "11.0.2",
+    "experimentalRuntimeParked": "~/Library/Application Support/Indie/DisabledRuntimes/org.indie.wine11/11.0.3-spatial.2",
+    "settings": "MetalFX, Metal 4, spatial diagnostics off",
+    "sample": "work/full-runtime/split-fiction-first-run/game-hang-sample.txt",
+    "sampleInterpretation": "Wine/Rosetta syscall dispatch frames limit unwind; root cause unconfirmed",
+    "physicalFootprintGB": 2.2,
+    "userObservation": "11.0.2 runs normally without any reported issue",
+    "conclusion": "Failure isolated to experimental runtime/build differences; spatial audio patch causality not established"
+  },
+  "spatialControlBuild": {
+    "runtimeVersion": "11.0.3-control.1",
+    "artifact": "dist/runtime/indie-wine-11.0.3-control.1-macos-x86_64.tar.xz",
+    "sha256": "2e76a52c24eea28b59257a8e4f224f8aa2eba6fded0a69955bb548f357cd385d",
+    "size": 52515392,
+    "packageAudit": {
+      "runtimeVersion": "11.0.3-control.1",
+      "machOCount": 38,
+      "dependencies": [
+        "/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation",
+        "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+        "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices",
+        "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox",
+        "/System/Library/Frameworks/AudioUnit.framework/Versions/A/AudioUnit",
+        "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon",
+        "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa",
+        "/System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio",
+        "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+        "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+        "/System/Library/Frameworks/CoreHaptics.framework/Versions/A/CoreHaptics",
+        "/System/Library/Frameworks/CoreMIDI.framework/Versions/A/CoreMIDI",
+        "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+        "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText",
+        "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+        "/System/Library/Frameworks/DiskArbitration.framework/Versions/A/DiskArbitration",
+        "/System/Library/Frameworks/ForceFeedback.framework/Versions/A/ForceFeedback",
+        "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+        "/System/Library/Frameworks/GameController.framework/Versions/A/GameController",
+        "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+        "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+        "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL",
+        "/System/Library/Frameworks/PCSC.framework/Versions/A/PCSC",
+        "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+        "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+        "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration",
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/libresolv.9.dylib",
+        "/usr/lib/libz.1.dylib",
+        "@rpath/libgmp.10.dylib",
+        "@rpath/libhogweed.6.dylib",
+        "@rpath/libinotify.0.dylib",
+        "@rpath/libnettle.8.dylib",
+        "@rpath/ntdll.so",
+        "@rpath/win32u.so"
+      ],
+      "errors": [],
+      "passed": true
+    },
+    "binaryDifferences": {
+      "checkedFiles": 1600,
+      "changed": [
+        "lib/wine/x86_64-unix/winecoreaudio.so",
+        "lib/wine/i386-windows/mmdevapi.dll",
+        "lib/wine/x86_64-windows/mmdevapi.dll"
+      ]
+    },
+    "integrationTests": {
+      "executed": 2,
+      "failures": 0
+    },
+    "smokeResults": [
+      {
+        "name": "wineboot",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 24.91,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 4.63,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 4.72,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.83,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.8,
+        "summaries": []
+      },
+      {
+        "name": "indie-d3d11-fixture",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.97,
+        "summaries": []
+      },
+      {
+        "name": "xinput",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.5,
+        "summaries": []
+      }
+    ],
+    "gameStatus": "passed; user reports no problem and very smooth gameplay",
+    "installedToActiveRuntimes": true,
+    "gameLog": "4B858AB7-EB39-44E1-9749-71B32686F9B7-steam-d3dmetal.log",
+    "gameComparisonConclusion": "Same-build control removing spatial patches is smooth; regression isolated to audio patch group, individual cause still pending",
+    "installedBinaryVerification": {
+      "filesChecked": 1600,
+      "changed": [
+        "lib/wine/x86_64-unix/winecoreaudio.so",
+        "lib/wine/i386-windows/mmdevapi.dll",
+        "lib/wine/x86_64-windows/mmdevapi.dll"
+      ],
+      "wineAndWineserverIdentical": true
+    }
+  },
+  "spatialProbeGate": {
+    "version": "11.0.4-probeoff.1",
+    "baseline": "11.0.3-spatial.2",
+    "change": "SpatialAudioClient_Create returns E_NOINTERFACE and writes diagnostic marker; all other spatial implementation retained",
+    "binaryDifferences": [
+      "lib/wine/i386-windows/mmdevapi.dll",
+      "lib/wine/x86_64-windows/mmdevapi.dll"
+    ],
+    "activationProbes": [
+      {
+        "name": "wineboot",
+        "exit": 0
+      },
+      {
+        "name": "activation-x64",
+        "exit": 0
+      },
+      {
+        "name": "activation-x86",
+        "exit": 0
+      }
+    ],
+    "ordinaryMixQuery": {
+      "channels": 8,
+      "rate": 48000,
+      "period100ns": 106667
+    },
+    "gameResult": "passed; user reports smooth picture and normal sound",
+    "notForRelease": true,
+    "gameLog": "242AECA5-6F26-4902-9EDC-D5C73DFACC4E-steam-d3dmetal.log",
+    "runtimeProcessConfirmed": true,
+    "activationMarkerObserved": true,
+    "conclusion": "Regression requires successful spatial activation or subsequent spatial API path; new ordinary audio implementation retained and normal in this test"
+  },
+  "spatialTraceDiagnostic": {
+    "version": "11.0.5-trace.1",
+    "base": "11.0.3-spatial.2",
+    "change": "COM-only bounded markers (256 per process), spatial semantics retained",
+    "tests": [
+      {
+        "name": "wineboot",
+        "exit": 0,
+        "summaries": []
+      },
+      {
+        "name": "spatial-x64",
+        "exit": 0,
+        "summaries": [
+          "0020:spatialaudio: 2998 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "spatial-x86",
+        "exit": 0,
+        "summaries": [
+          "00d8:spatialaudio: 2998 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      }
+    ],
+    "gameResult": "failed; user reports renewed stutter/freeze",
+    "notForRelease": true,
+    "observations": {
+      "dynamicCapacity": 31,
+      "periodFrames": 512,
+      "rate": 48000,
+      "staticMask": "0x1ffe",
+      "requestedDynamic": "0..31",
+      "streamChannels": 44,
+      "clientActivation": "success",
+      "streamInitialization": "success",
+      "startAndInitialUpdates": "success",
+      "unimplementedInterfaceCause": "not established"
+    }
+  },
+  "windowsComparisonDiagnostic": {
+    "document": "docs/WINDOWS_SPATIAL_AUDIO_COMPARISON.md",
+    "trace2RepeatedActivations": 16,
+    "nativeTraceErrorsObserved": 0,
+    "capacityVariant": "11.0.8-capacity.1",
+    "singleBehaviorChange": "BeginUpdatingAudioObjects returns render capacity instead of unallocated slots",
+    "gameLog": "6E5CDE03-00C5-4FA9-B1B2-DACD24E37509-steam-d3dmetal.log",
+    "capacityGameObserved": {
+      "allocated": 31,
+      "reportedCapacity": 31,
+      "frames": 512,
+      "streamCreations": 1
+    },
+    "gameplayConfirmation": "User confirmed same scene: smooth picture, controls and sound normal",
+    "x64Tests": {
+      "executed": 2998,
+      "failures": 0,
+      "skipped": 0,
+      "todo": 2
+    },
+    "x86Tests": {
+      "status": "blocked-by-test-prefix",
+      "reason": "Fresh test prefix missing syswow64/kernel32.dll; test exits c0000135 before execution; no implementation conclusion"
+    },
+    "conclusion": "Begin render-capacity semantics causes repeated spatial stream recreation and observed stutter/freeze; single-value A/B restores normal gameplay",
+    "formalPatchStack": "Updated 0004 COM and 0006 tests; SHA256 refreshed; zero-fuzz reapply verified"
+  },
+  "spatialServices": {
+    "date": "2026-10-10",
+    "runtime": "11.0.9-services.1",
+    "patch": "0007-spatial-audio-services.patch",
+    "services": [
+      "IAudioClock",
+      "IAudioClock2",
+      "IAudioStreamVolume"
+    ],
+    "streamAvailability": "base object stream capability query; unsupported streams rejected",
+    "tests": [
+      {
+        "name": "spatial-x64",
+        "exit": 0,
+        "summaries": [
+          "0020:spatialaudio: 3090 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped."
+        ]
+      },
+      {
+        "name": "spatial-x86",
+        "exit": 0,
+        "summaries": [
+          "011c:spatialaudio: 3090 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped."
+        ]
+      }
+    ],
+    "packageAudit": {
+      "passed": true,
+      "machOCount": 48
+    },
+    "patchAppliedWithZeroFuzz": true,
+    "diagnosticInstrumentation": false,
+    "gameplayValidation": {
+      "date": "2026-10-10",
+      "game": "Split Fiction",
+      "runtime": "11.0.9-services.1",
+      "defaultOutputChannels": 12,
+      "defaultOutputRate": 48000,
+      "gamePID": 51291,
+      "wineServerPID": 51155,
+      "outputLog": "14CF7E0D-24AF-4874-B9D9-B73EB39C8260-steam-d3dmetal.log",
+      "status": "passed-user-confirmed-same-scene",
+      "note": "Existing Apple Neural Engine Code 26 observed; not independently causal for audio regression",
+      "userFeedback": "画面流畅、操作和声音正常",
+      "limitations": "Short same-scene gameplay acceptance; speaker direction listening, sleep/wake, device hotplug and long-duration soak remain unverified"
+    },
+    "remainingConformance": "Windows reference device/volume mapping; non-default sample rates and physical device lifecycle",
+    "output714Validation": {
+      "date": "2026-10-10",
+      "deviceName": "Dolby_5.1.2",
+      "channels": 12,
+      "sampleRate": 48000,
+      "layout": "front L/R/C/LFE, side L/R, top rear L/R, rear L/R, top front L/R; preserved native order",
+      "runtime": "11.0.9-services.1",
+      "architecture": "x86_64",
+      "tests": 3090,
+      "failures": 0,
+      "skipped": 0,
+      "todo": 2,
+      "evidence": [
+        "work/full-runtime/spatial-services/output-layout-7.1.4.txt",
+        "work/full-runtime/spatial-services/spatial-7.1.4-x64.log"
+      ],
+      "limitations": "API/renderer test pass; directional listening and physical downstream speaker routing not independently verified"
+    }
+  }
+}

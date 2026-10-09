@@ -1,0 +1,665 @@
+From: Mac Gaming Uncle contributors
+Subject: [MGU] spatial stream clock, volume services and availability
+License: LGPL-2.1-or-later
+
+--- a/dlls/mmdevapi/spatialaudio.c
++++ b/dlls/mmdevapi/spatialaudio.c
+@@ -172,6 +172,9 @@
+ };
+ 
+ struct SpatialAudioStreamImpl {
++    IAudioClock IAudioClock_iface;
++    IAudioClock2 IAudioClock2_iface;
++    IAudioStreamVolume IAudioStreamVolume_iface;
+     ISpatialAudioObjectRenderStream ISpatialAudioObjectRenderStream_iface;
+     LONG ref;
+     CRITICAL_SECTION lock;
+@@ -750,17 +753,264 @@
+     return S_OK;
+ }
+ 
+-static HRESULT WINAPI SAORS_GetService(ISpatialAudioObjectRenderStream *iface,
+-        REFIID riid, void **service)
+-{
+-    SpatialAudioStreamImpl *This = impl_from_ISpatialAudioObjectRenderStream(iface);
+-    FIXME("(%p)->(%s, %p)\n", This, debugstr_guid(riid), service);
+-
+-    if (!service)
+-        return E_POINTER;
+-
++/* Service references retain the spatial stream, including its renderer and
++ * endpoint-loss state, rather than returning the private audio client. */
++static HRESULT spatial_service_backend(SpatialAudioStreamImpl *stream, REFIID iid, void **out)
++{
++    BOOL notify;
++    HRESULT hr;
++
++    *out = NULL;
++    EnterCriticalSection(&stream->lock);
++    notify = poll_stream_invalidation_locked(stream);
++    hr = stream->invalidation_hr;
++    if (SUCCEEDED(hr))
++        hr = IAudioClient_GetService(stream->client, iid, out);
++    LeaveCriticalSection(&stream->lock);
++    if (notify)
++        notify_dynamic_capacity_lost(stream);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_clock_QueryInterface(IAudioClock *iface, REFIID iid, void **out)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (IsEqualIID(iid, &IID_IUnknown) || IsEqualIID(iid, &IID_IAudioClock))
++        *out = iface;
++    else if (IsEqualIID(iid, &IID_IAudioClock2))
++        *out = &stream->IAudioClock2_iface;
++    else
++        return E_NOINTERFACE;
++    SAORS_AddRef(&stream->ISpatialAudioObjectRenderStream_iface);
++    return S_OK;
++}
++
++static ULONG WINAPI spatial_clock_AddRef(IAudioClock *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++    return SAORS_AddRef(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static ULONG WINAPI spatial_clock_Release(IAudioClock *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++    return SAORS_Release(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static HRESULT WINAPI spatial_clock_GetFrequency(IAudioClock *iface, UINT64 *value)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++    IAudioClock *backend;
++    HRESULT hr;
++
++    if (!value) return E_POINTER;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioClock, (void **)&backend))) return hr;
++    hr = IAudioClock_GetFrequency(backend, value);
++    IAudioClock_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_clock_GetPosition(IAudioClock *iface, UINT64 *value, UINT64 *qpc)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++    IAudioClock *backend;
++    HRESULT hr;
++
++    if (!value) return E_POINTER;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioClock, (void **)&backend))) return hr;
++    hr = IAudioClock_GetPosition(backend, value, qpc);
++    IAudioClock_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_clock_GetCharacteristics(IAudioClock *iface, DWORD *value)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock_iface);
++    IAudioClock *backend;
++    HRESULT hr;
++
++    if (!value) return E_POINTER;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioClock, (void **)&backend))) return hr;
++    hr = IAudioClock_GetCharacteristics(backend, value);
++    IAudioClock_Release(backend);
++    return hr;
++}
++
++static const IAudioClockVtbl spatial_clock_vtbl =
++{
++    spatial_clock_QueryInterface, spatial_clock_AddRef, spatial_clock_Release,
++    spatial_clock_GetFrequency, spatial_clock_GetPosition, spatial_clock_GetCharacteristics
++};
++
++static HRESULT WINAPI spatial_clock2_QueryInterface(IAudioClock2 *iface, REFIID iid, void **out)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock2_iface);
++    return spatial_clock_QueryInterface(&stream->IAudioClock_iface, iid, out);
++}
++
++static ULONG WINAPI spatial_clock2_AddRef(IAudioClock2 *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock2_iface);
++    return SAORS_AddRef(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static ULONG WINAPI spatial_clock2_Release(IAudioClock2 *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock2_iface);
++    return SAORS_Release(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static HRESULT WINAPI spatial_clock2_GetDevicePosition(IAudioClock2 *iface, UINT64 *position, UINT64 *qpc)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioClock2_iface);
++    IAudioClock *clock;
++    IAudioClock2 *backend;
++    HRESULT hr;
++
++    if (!position) return E_POINTER;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioClock, (void **)&clock))) return hr;
++    hr = IAudioClock_QueryInterface(clock, &IID_IAudioClock2, (void **)&backend);
++    IAudioClock_Release(clock);
++    if (FAILED(hr)) return hr;
++    hr = IAudioClock2_GetPosition(backend, position, qpc);
++    IAudioClock2_Release(backend);
++    return hr;
++}
++
++static const IAudioClock2Vtbl spatial_clock2_vtbl =
++{
++    spatial_clock2_QueryInterface, spatial_clock2_AddRef, spatial_clock2_Release,
++    spatial_clock2_GetDevicePosition
++};
++
++static HRESULT WINAPI spatial_volume_QueryInterface(IAudioStreamVolume *iface, REFIID iid, void **out)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++
++    if (!out) return E_POINTER;
++    *out = NULL;
++    if (!IsEqualIID(iid, &IID_IUnknown) && !IsEqualIID(iid, &IID_IAudioStreamVolume))
++        return E_NOINTERFACE;
++    *out = iface;
++    SAORS_AddRef(&stream->ISpatialAudioObjectRenderStream_iface);
++    return S_OK;
++}
++
++static ULONG WINAPI spatial_volume_AddRef(IAudioStreamVolume *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    return SAORS_AddRef(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static ULONG WINAPI spatial_volume_Release(IAudioStreamVolume *iface)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    return SAORS_Release(&stream->ISpatialAudioObjectRenderStream_iface);
++}
++
++static HRESULT WINAPI spatial_volume_GetChannelCount(IAudioStreamVolume *iface, UINT32 *count)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    IAudioStreamVolume *backend;
++    HRESULT hr;
++    if (!count) return E_POINTER;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioStreamVolume, (void **)&backend))) return hr;
++    hr = IAudioStreamVolume_GetChannelCount(backend, count);
++    IAudioStreamVolume_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_volume_GetChannelVolume(IAudioStreamVolume *iface, UINT32 index, float *level)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    IAudioStreamVolume *backend;
++    HRESULT hr;
++    if (!level) return E_POINTER;
++    if (index >= stream->stream_fmtex.Format.nChannels) return E_INVALIDARG;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioStreamVolume, (void **)&backend))) return hr;
++    hr = IAudioStreamVolume_GetChannelVolume(backend, index, level);
++    IAudioStreamVolume_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_volume_SetChannelVolume(IAudioStreamVolume *iface, UINT32 index, float level)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    IAudioStreamVolume *backend;
++    HRESULT hr;
++    if (index >= stream->stream_fmtex.Format.nChannels || !isfinite(level) || level < 0.0f || level > 1.0f) return E_INVALIDARG;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioStreamVolume, (void **)&backend))) return hr;
++    hr = IAudioStreamVolume_SetChannelVolume(backend, index, level);
++    IAudioStreamVolume_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_volume_GetAllVolumes(IAudioStreamVolume *iface, UINT32 count, float *levels)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    IAudioStreamVolume *backend;
++    HRESULT hr;
++    if (!levels) return E_POINTER;
++    if (count != stream->stream_fmtex.Format.nChannels) return E_INVALIDARG;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioStreamVolume, (void **)&backend))) return hr;
++    hr = IAudioStreamVolume_GetAllVolumes(backend, count, levels);
++    IAudioStreamVolume_Release(backend);
++    return hr;
++}
++
++static HRESULT WINAPI spatial_volume_SetAllVolumes(IAudioStreamVolume *iface, UINT32 count, const float *levels)
++{
++    SpatialAudioStreamImpl *stream = CONTAINING_RECORD(iface, SpatialAudioStreamImpl, IAudioStreamVolume_iface);
++    IAudioStreamVolume *backend;
++    HRESULT hr;
++    UINT32 i;
++
++    if (!levels) return E_POINTER;
++    if (count != stream->stream_fmtex.Format.nChannels) return E_INVALIDARG;
++    for (i = 0; i < count; ++i)
++        if (!isfinite(levels[i]) || levels[i] < 0.0f || levels[i] > 1.0f) return E_INVALIDARG;
++    if (FAILED(hr = spatial_service_backend(stream, &IID_IAudioStreamVolume, (void **)&backend))) return hr;
++    hr = IAudioStreamVolume_SetAllVolumes(backend, count, levels);
++    IAudioStreamVolume_Release(backend);
++    return hr;
++}
++
++static const IAudioStreamVolumeVtbl spatial_volume_vtbl =
++{
++    spatial_volume_QueryInterface, spatial_volume_AddRef, spatial_volume_Release,
++    spatial_volume_GetChannelCount, spatial_volume_SetChannelVolume,
++    spatial_volume_GetChannelVolume, spatial_volume_SetAllVolumes, spatial_volume_GetAllVolumes
++};
++
++static HRESULT WINAPI SAORS_GetService(ISpatialAudioObjectRenderStream *iface, REFIID iid, void **service)
++{
++    SpatialAudioStreamImpl *stream = impl_from_ISpatialAudioObjectRenderStream(iface);
++    BOOL notify;
++    HRESULT hr;
++
++    if (!service) return E_POINTER;
+     *service = NULL;
+-    return E_NOTIMPL;
++    EnterCriticalSection(&stream->lock);
++    notify = poll_stream_invalidation_locked(stream);
++    hr = stream->invalidation_hr;
++    if (SUCCEEDED(hr))
++    {
++        if (IsEqualIID(iid, &IID_IAudioClock))
++            *service = &stream->IAudioClock_iface;
++        else if (IsEqualIID(iid, &IID_IAudioClock2))
++            *service = &stream->IAudioClock2_iface;
++        else if (IsEqualIID(iid, &IID_IAudioStreamVolume))
++            *service = &stream->IAudioStreamVolume_iface;
++        else
++            hr = E_NOINTERFACE;
++        if (*service) SAORS_AddRef(iface);
++    }
++    LeaveCriticalSection(&stream->lock);
++    if (notify) notify_dynamic_capacity_lost(stream);
++    return hr;
+ }
+ 
+ static HRESULT WINAPI SAORS_Start(ISpatialAudioObjectRenderStream *iface)
+@@ -1437,8 +1687,12 @@
+         REFIID stream_uuid, const PROPVARIANT *info)
+ {
+     SpatialAudioImpl *This = impl_from_ISpatialAudioClient(iface);
+-    FIXME("(%p)->(%s, %p)\n", This, debugstr_guid(stream_uuid), info);
+-    return E_NOTIMPL;
++    struct spatial_audio_capabilities capabilities;
++
++    TRACE("(%p)->(%s, %p)\n", This, debugstr_guid(stream_uuid), info);
++    if (!IsEqualIID(stream_uuid, &IID_ISpatialAudioObjectRenderStream))
++        return SPTLAUDCLNT_E_STREAM_NOT_AVAILABLE;
++    return audio_client_get_spatial_audio_capabilities(This->mmdev, &capabilities);
+ }
+ 
+ static WAVEFORMATEX *clone_fmtex(const WAVEFORMATEX *src)
+@@ -1706,6 +1960,9 @@
+             return E_OUTOFMEMORY;
+ 
+         obj->ISpatialAudioObjectRenderStream_iface.lpVtbl = &ISpatialAudioObjectRenderStream_vtbl;
++        obj->IAudioClock_iface.lpVtbl = &spatial_clock_vtbl;
++        obj->IAudioClock2_iface.lpVtbl = &spatial_clock2_vtbl;
++        obj->IAudioStreamVolume_iface.lpVtbl = &spatial_volume_vtbl;
+         obj->ref = 1;
+         memcpy(&obj->params, params, sizeof(obj->params));
+         obj->params.MaxDynamicObjectCount = dynamic_count;
+--- a/dlls/winecoreaudio.drv/coreaudio.c
++++ b/dlls/winecoreaudio.drv/coreaudio.c
+@@ -143,6 +143,8 @@
+     UINT32 cap_bufsize_frames, cap_offs_frames, cap_held_frames;
+     UINT32 wrap_bufsize_frames;
+     UINT64 written_frames;
++    UINT64 spatial_device_position;
++    UINT64 spatial_device_qpc;
+     INT32 getbuf_last;
+     WAVEFORMATEX *fmt;
+     UINT32 *spatial_volume_bits;
+@@ -4386,9 +4388,55 @@
+     struct coreaudio_stream *stream = handle_get_stream(params->stream);
+     LARGE_INTEGER stamp, freq;
+ 
+-    if (params->device) {
+-        FIXME("Device position reporting not implemented\n");
+-        params->result = E_NOTIMPL;
++    if (params->device)
++    {
++        AudioTimeStamp time = {0};
++        mach_timebase_info_data_t timebase;
++        UINT64 host_now;
++        long double qpc;
++        OSStatus status;
++
++        if (!stream->spatial)
++        {
++            params->result = E_NOTIMPL;
++            return STATUS_SUCCESS;
++        }
++        os_unfair_lock_lock(&stream->lock);
++        if (__atomic_load_n(&stream->invalidated, __ATOMIC_ACQUIRE))
++            params->result = AUDCLNT_E_DEVICE_INVALIDATED;
++        else if (!__atomic_load_n(&stream->playing, __ATOMIC_ACQUIRE))
++        {
++            *params->pos = stream->spatial_device_position;
++            if (params->qpctime) *params->qpctime = stream->spatial_device_qpc;
++            params->result = AUDCLNT_S_POSITION_STALLED;
++        }
++        else if ((status = AudioDeviceGetCurrentTime(stream->dev_id, &time)) != noErr)
++            params->result = osstatus_to_hresult(status);
++        else if (!(time.mFlags & kAudioTimeStampSampleTimeValid) ||
++                !isfinite(time.mSampleTime) || time.mSampleTime < 0.0 ||
++                time.mSampleTime >= (double)~(UINT64)0)
++            params->result = E_FAIL;
++        else
++        {
++            /* CoreAudio's device timeline is in endpoint frames, not the
++             * private PCM transport's bytes or client-rate frames. */
++            stream->spatial_device_position = time.mSampleTime;
++            NtQueryPerformanceCounter(&stamp, &freq);
++            qpc = (long double)stamp.QuadPart * 10000000 / freq.QuadPart;
++            /* Audio host time excludes sleep, while Wine QPC uses continuous
++             * time. Map the correlated device stamp relative to now rather
++             * than treating the two clock epochs as interchangeable. */
++            host_now = mach_absolute_time();
++            if ((time.mFlags & kAudioTimeStampHostTimeValid) &&
++                    mach_timebase_info(&timebase) == KERN_SUCCESS)
++                qpc -= ((long double)host_now - time.mHostTime) *
++                        timebase.numer / timebase.denom / 100;
++            stream->spatial_device_qpc = qpc > 0 ? qpc : 0;
++            *params->pos = stream->spatial_device_position;
++            if (params->qpctime) *params->qpctime = stream->spatial_device_qpc;
++            params->result = S_OK;
++        }
++        os_unfair_lock_unlock(&stream->lock);
+         return STATUS_SUCCESS;
+     }
+ 
+@@ -4425,6 +4473,16 @@
+     struct get_frequency_params *params = args;
+     struct coreaudio_stream *stream = handle_get_stream(params->stream);
+ 
++    if (!params->freq)
++    {
++        params->result = E_POINTER;
++        return STATUS_SUCCESS;
++    }
++    if (__atomic_load_n(&stream->invalidated, __ATOMIC_ACQUIRE))
++    {
++        params->result = AUDCLNT_E_DEVICE_INVALIDATED;
++        return STATUS_SUCCESS;
++    }
+     if(stream->share == AUDCLNT_SHAREMODE_SHARED)
+         *params->freq = (UINT64)stream->fmt->nSamplesPerSec * stream->fmt->nBlockAlign;
+     else
+--- a/dlls/mmdevapi/tests/spatialaudio.c
++++ b/dlls/mmdevapi/tests/spatialaudio.c
+@@ -461,6 +461,12 @@
+     ISpatialAudioObjectRenderStream *stream = NULL;
+     ISpatialAudioObject *object = NULL;
+     NotifyObject notify;
++    IAudioClock *clock = NULL;
++    IAudioClock2 *clock2 = NULL;
++    IAudioStreamVolume *volume = NULL;
++    UINT64 position;
++    float level;
++    void *service;
+     BYTE *buffer = NULL;
+     UINT32 available = ~0u;
+     UINT32 bytes = ~0u;
+@@ -496,6 +502,12 @@
+     if (hr != S_OK || !object)
+         goto done;
+ 
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock, (void **)&clock);
++    ok(hr == S_OK, "Fault clock acquisition failed %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock2, (void **)&clock2);
++    ok(hr == S_OK, "Fault clock2 acquisition failed %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioStreamVolume, (void **)&volume);
++    ok(hr == S_OK, "Fault volume acquisition failed %#lx.\n", hr);
+     hr = ISpatialAudioObjectRenderStream_Start(stream);
+     ok(hr == S_OK || hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED ||
+             hr == AUDCLNT_E_DEVICE_INVALIDATED ||
+@@ -511,6 +523,26 @@
+                 wine_dbgstr_longlong(notify.deadline));
+         ok(!notify.object_count, "Expected zero available objects, got %u.\n",
+                 notify.object_count);
++        if (clock)
++        {
++            hr = IAudioClock_GetFrequency(clock, &position);
++            ok(hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED, "Lost clock returned %#lx.\n", hr);
++        }
++        if (clock2)
++        {
++            hr = IAudioClock2_GetPosition(clock2, &position, NULL);
++            ok(hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED, "Lost device clock returned %#lx.\n", hr);
++        }
++        if (volume)
++        {
++            hr = IAudioStreamVolume_GetChannelVolume(volume, 0, &level);
++            ok(hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED, "Lost volume returned %#lx.\n", hr);
++            hr = IAudioStreamVolume_SetChannelVolume(volume, 0, 0.5f);
++            ok(hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED, "Lost volume setter returned %#lx.\n", hr);
++        }
++        service = (void *)0xdeadbeef;
++        hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock, &service);
++        ok(hr == SPTLAUDCLNT_E_RESOURCES_INVALIDATED && !service, "Lost service output not cleared %#lx/%p.\n", hr, service);
+         hr = ISpatialAudioObject_IsActive(object, &active);
+         ok(hr == S_OK && !active,
+                 "Expected the endpoint-loss object to be inactive, got %#lx/%d.\n",
+@@ -530,6 +562,9 @@
+         ok(wait == WAIT_TIMEOUT, "Expected a one-shot notification, got %#lx.\n", wait);
+     }
+ 
++    if (volume) { IAudioStreamVolume_Release(volume); volume = NULL; }
++    if (clock2) { IAudioClock2_Release(clock2); clock2 = NULL; }
++    if (clock) { IAudioClock_Release(clock); clock = NULL; }
+     ISpatialAudioObject_Release(object);
+     object = NULL;
+     ISpatialAudioObjectRenderStream_Release(stream);
+@@ -542,6 +577,9 @@
+             InterlockedCompareExchange(&notify.ref, 0, 0));
+ 
+ done:
++    if (volume) IAudioStreamVolume_Release(volume);
++    if (clock2) IAudioClock2_Release(clock2);
++    if (clock) IAudioClock_Release(clock);
+     if (object)
+         ISpatialAudioObject_Release(object);
+     if (stream)
+@@ -1356,6 +1394,178 @@
+     free(objects);
+ }
+ 
++static void test_spatial_services(void)
++{
++    SpatialAudioObjectRenderStreamActivationParams params;
++    PROPVARIANT activation;
++    ISpatialAudioObjectRenderStream *stream = NULL;
++    ISpatialAudioObject *object = NULL;
++    IAudioClock *clock = NULL, *other_clock;
++    IAudioClock2 *clock2 = NULL, *other_clock2;
++    IAudioStreamVolume *volume = NULL;
++    IUnknown *unknown, *other_unknown;
++    UINT64 frequency, position, later, qpc, device_position;
++    UINT32 count, available, frames, bytes, i;
++    DWORD characteristics;
++    float *levels = NULL, level;
++    BYTE *buffer;
++    HRESULT hr;
++    void *service;
++
++    if (!spatial_stream_supported || !max_dyn_count)
++    {
++        win_skip("Spatial services need a rendering endpoint.\n");
++        return;
++    }
++    hr = ISpatialAudioClient_IsSpatialAudioStreamAvailable(sac, &IID_ISpatialAudioObjectRenderStream, NULL);
++    ok(hr == S_OK, "Expected the base stream to be available, got %#lx.\n", hr);
++    hr = ISpatialAudioClient_IsSpatialAudioStreamAvailable(sac, &IID_IAudioClient, NULL);
++    ok(hr == SPTLAUDCLNT_E_STREAM_NOT_AVAILABLE, "Unexpected unsupported stream result %#lx.\n", hr);
++    fill_activation_params(&params);
++    params.StaticObjectTypeMask = AudioObjectType_FrontLeft | AudioObjectType_FrontRight;
++    params.MaxDynamicObjectCount = min(max_dyn_count, 2);
++    params.MinDynamicObjectCount = params.MaxDynamicObjectCount;
++    PropVariantInit(&activation);
++    activation.vt = VT_BLOB;
++    activation.blob.cbSize = sizeof(params);
++    activation.blob.pBlobData = (BYTE *)&params;
++    hr = ISpatialAudioClient_ActivateSpatialAudioStream(sac, &activation, &IID_ISpatialAudioObjectRenderStream, (void **)&stream);
++    ok(hr == S_OK, "Service stream activation failed %#lx.\n", hr);
++    if (FAILED(hr)) return;
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock, NULL);
++    ok(hr == E_POINTER, "Expected null output rejection, got %#lx.\n", hr);
++    service = (void *)0xdeadbeef;
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClient, &service);
++    ok(hr == E_NOINTERFACE && !service, "Unknown service must clear output, got %#lx/%p.\n", hr, service);
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock, (void **)&clock);
++    ok(hr == S_OK && clock, "Clock service failed %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioClock2, (void **)&clock2);
++    ok(hr == S_OK && clock2, "Clock2 service failed %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_GetService(stream, &IID_IAudioStreamVolume, (void **)&volume);
++    ok(hr == S_OK && volume, "Volume service failed %#lx.\n", hr);
++    if (!clock || !clock2 || !volume) goto done;
++
++    hr = IAudioClock_QueryInterface(clock, &IID_IAudioClock2, (void **)&other_clock2);
++    ok(hr == S_OK && other_clock2 == clock2, "Clock2 identity mismatch %#lx.\n", hr);
++    if (SUCCEEDED(hr)) IAudioClock2_Release(other_clock2);
++    hr = IAudioClock2_QueryInterface(clock2, &IID_IAudioClock, (void **)&other_clock);
++    ok(hr == S_OK && other_clock == clock, "Clock identity mismatch %#lx.\n", hr);
++    if (SUCCEEDED(hr)) IAudioClock_Release(other_clock);
++    IAudioClock_QueryInterface(clock, &IID_IUnknown, (void **)&unknown);
++    IAudioClock2_QueryInterface(clock2, &IID_IUnknown, (void **)&other_unknown);
++    ok(unknown == other_unknown, "The clocks must have the same controlling unknown.\n");
++    IUnknown_Release(unknown);
++    IUnknown_Release(other_unknown);
++    hr = IAudioClock_GetFrequency(clock, NULL);
++    ok(hr == E_POINTER, "Expected clock pointer validation, got %#lx.\n", hr);
++    hr = IAudioClock_GetPosition(clock, NULL, NULL);
++    ok(hr == E_POINTER, "Expected position pointer validation, got %#lx.\n", hr);
++    hr = IAudioClock2_GetPosition(clock2, NULL, NULL);
++    ok(hr == E_POINTER, "Expected device pointer validation, got %#lx.\n", hr);
++    hr = IAudioClock_GetFrequency(clock, &frequency);
++    ok(hr == S_OK && frequency, "Invalid clock frequency %#lx.\n", hr);
++    hr = IAudioClock_GetCharacteristics(clock, &characteristics);
++    ok(hr == S_OK && characteristics == AUDIOCLOCK_CHARACTERISTIC_FIXED_FREQ, "Invalid clock characteristics %#lx.\n", hr);
++    hr = IAudioClock2_GetPosition(clock2, &device_position, &qpc);
++    ok(hr == AUDCLNT_S_POSITION_STALLED, "Stopped device clock must be stalled, got %#lx.\n", hr);
++
++    hr = IAudioStreamVolume_GetChannelCount(volume, &count);
++    ok(hr == S_OK && count, "Invalid volume channel count %#lx/%u.\n", hr, count);
++    levels = calloc(count, sizeof(*levels));
++    if (!levels) goto done;
++    hr = IAudioStreamVolume_GetAllVolumes(volume, count, levels);
++    ok(hr == S_OK, "GetAllVolumes failed %#lx.\n", hr);
++    for (i = 0; i < count; ++i)
++        ok(levels[i] == 1.0f, "Expected unity channel %u, got %f.\n", i, levels[i]);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, count, 0.5f);
++    ok(hr == E_INVALIDARG, "Invalid channel accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, 0, NAN);
++    ok(hr == E_INVALIDARG, "NaN volume accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, 0, INFINITY);
++    ok(hr == E_INVALIDARG, "Infinite volume accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, 0, -0.5f);
++    ok(hr == E_INVALIDARG, "Negative volume accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, 0, 1.5f);
++    ok(hr == E_INVALIDARG, "Excess volume accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetAllVolumes(volume, count, NULL);
++    ok(hr == E_POINTER, "Null volumes accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_GetAllVolumes(volume, count - 1, levels);
++    ok(hr == E_INVALIDARG, "Wrong volume count accepted %#lx.\n", hr);
++    for (i = 0; i < count; ++i) levels[i] = 0.5f;
++    levels[count - 1] = NAN;
++    hr = IAudioStreamVolume_SetAllVolumes(volume, count, levels);
++    ok(hr == E_INVALIDARG, "Invalid batch accepted %#lx.\n", hr);
++    hr = IAudioStreamVolume_GetChannelVolume(volume, 0, &level);
++    ok(hr == S_OK && level == 1.0f, "Invalid batch changed earlier channels: %#lx/%f.\n", hr, level);
++    levels[count - 1] = 0.5f;
++    hr = IAudioStreamVolume_SetAllVolumes(volume, count, levels);
++    ok(hr == S_OK, "Valid volume batch failed %#lx.\n", hr);
++    hr = IAudioStreamVolume_SetChannelVolume(volume, 0, 0.25f);
++    ok(hr == S_OK, "Channel setter failed %#lx.\n", hr);
++    hr = IAudioStreamVolume_GetAllVolumes(volume, count, levels);
++    ok(hr == S_OK && levels[0] == 0.25f, "Volume round trip failed %#lx.\n", hr);
++    for (i = 1; i < count; ++i) ok(levels[i] == 0.5f, "Unexpected channel %u volume %f.\n", i, levels[i]);
++
++    hr = ISpatialAudioObjectRenderStream_Start(stream);
++    ok(hr == S_OK, "Start failed %#lx.\n", hr);
++    if (FAILED(hr)) goto done;
++    for (i = 0; i < 8; ++i)
++    {
++        hr = WaitForSingleObject(event, 1000);
++        ok(hr == WAIT_OBJECT_0, "Service update timeout %u.\n", i);
++        if (hr != WAIT_OBJECT_0) break;
++        hr = ISpatialAudioObjectRenderStream_BeginUpdatingAudioObjects(stream, &available, &frames);
++        ok(hr == S_OK, "Begin failed %#lx.\n", hr);
++        if (FAILED(hr)) break;
++        if (!object)
++        {
++            hr = ISpatialAudioObjectRenderStream_ActivateSpatialAudioObject(stream, AudioObjectType_Dynamic, &object);
++            ok(hr == S_OK, "Object activation failed %#lx.\n", hr);
++        }
++        if (object)
++        {
++            hr = ISpatialAudioObject_GetBuffer(object, &buffer, &bytes);
++            ok(hr == S_OK, "Buffer failed %#lx.\n", hr);
++            if (SUCCEEDED(hr)) memset(buffer, 0, bytes);
++        }
++        hr = ISpatialAudioObjectRenderStream_EndUpdatingAudioObjects(stream);
++        ok(hr == S_OK, "End failed %#lx.\n", hr);
++    }
++    Sleep(20);
++    hr = IAudioClock_GetPosition(clock, &position, &qpc);
++    ok(hr == S_OK && position && qpc, "Stream clock did not advance %#lx.\n", hr);
++    ok(position <= frequency, "Unexpected stream duration %s/%s.\n", wine_dbgstr_longlong(position), wine_dbgstr_longlong(frequency));
++    hr = IAudioClock2_GetPosition(clock2, &device_position, &qpc);
++    ok(hr == S_OK && qpc, "Device clock failed %#lx.\n", hr);
++    Sleep(20);
++    hr = IAudioClock2_GetPosition(clock2, &later, NULL);
++    ok(hr == S_OK && later >= device_position, "Device clock regressed %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_Stop(stream);
++    ok(hr == S_OK, "Stop failed %#lx.\n", hr);
++    hr = IAudioClock_GetPosition(clock, &position, NULL);
++    ok(hr == S_OK, "Stopped stream clock failed %#lx.\n", hr);
++    Sleep(20);
++    hr = IAudioClock_GetPosition(clock, &later, NULL);
++    ok(hr == S_OK && later == position, "Stopped stream clock advanced %#lx.\n", hr);
++    hr = ISpatialAudioObjectRenderStream_Reset(stream);
++    ok(hr == S_OK, "Reset failed %#lx.\n", hr);
++    if (object) { ISpatialAudioObject_Release(object); object = NULL; }
++    ISpatialAudioObjectRenderStream_Release(stream);
++    stream = NULL;
++    hr = IAudioClock_GetPosition(clock, &position, NULL);
++    ok(hr == S_OK && !position, "Service did not retain reset stream %#lx.\n", hr);
++    hr = IAudioStreamVolume_GetChannelVolume(volume, 0, &level);
++    ok(hr == S_OK && level == 0.25f, "Volume did not retain stream %#lx/%f.\n", hr, level);
++
++done:
++    free(levels);
++    if (object) ISpatialAudioObject_Release(object);
++    if (volume) IAudioStreamVolume_Release(volume);
++    if (clock2) IAudioClock2_Release(clock2);
++    if (clock) IAudioClock_Release(clock);
++    if (stream) ISpatialAudioObjectRenderStream_Release(stream);
++}
++
+ START_TEST(spatialaudio)
+ {
+     HRESULT hr;
+@@ -1408,6 +1618,7 @@
+     test_proactive_reentrant_release();
+     test_prestart_invalidation();
+     test_dynamic_audio_objects();
++    test_spatial_services();
+ 
+     ISpatialAudioClient_Release(sac);
+ 

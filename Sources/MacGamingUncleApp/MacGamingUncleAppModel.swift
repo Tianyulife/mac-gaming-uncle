@@ -570,6 +570,9 @@ final class MacGamingUncleAppModel: ObservableObject {
             }
 
             var gameEnvironment = environment
+            gameEnvironment.merge(SpatialAudioDiagnostics.environment(
+                enabled: configuration.spatialAudioDiagnostics == true
+            )) { _, configured in configured }
             gameEnvironment.merge(
                 ControllerLaunchEnvironment.make(
                     mode: configuration.controllerMode,
@@ -1187,6 +1190,9 @@ final class MacGamingUncleAppModel: ObservableObject {
             } else if renderer == .wineD3D {
                 try await provider.configureWineD3DGraphics(in: bottle)
             }
+            environment.merge(SpatialAudioDiagnostics.environment(
+                enabled: configuration.spatialAudioDiagnostics == true
+            )) { _, configured in configured }
             let profile = LaunchProfile(
                 runtimeID: runtime.manifest.id,
                 preferredRenderer: renderer,

@@ -326,6 +326,7 @@ public struct GameConfiguration: Codable, Hashable, Sendable, Identifiable {
     public var controllerMode: ControllerMode
     public var controllerRumble: Bool
     public var frameInterpolation: Bool?
+    public var spatialAudioDiagnostics: Bool?
     public var arguments: [String]
     public var updatedAt: Date
 
@@ -340,6 +341,7 @@ public struct GameConfiguration: Codable, Hashable, Sendable, Identifiable {
         controllerMode: ControllerMode = .automatic,
         controllerRumble: Bool = true,
         frameInterpolation: Bool? = nil,
+        spatialAudioDiagnostics: Bool? = nil,
         arguments: [String] = [],
         updatedAt: Date = Date()
     ) {
@@ -353,6 +355,7 @@ public struct GameConfiguration: Codable, Hashable, Sendable, Identifiable {
         self.controllerMode = controllerMode
         self.controllerRumble = controllerRumble
         self.frameInterpolation = frameInterpolation
+        self.spatialAudioDiagnostics = spatialAudioDiagnostics
         self.arguments = arguments
         self.updatedAt = updatedAt
     }
@@ -363,7 +366,8 @@ public struct GameConfiguration: Codable, Hashable, Sendable, Identifiable {
     public var isCustomized: Bool {
         virtualDesktop != nil || preferredRenderer != nil || syncBackend != .automatic ||
             metalHUD != .inherit || metalFX != .inherit || metal4 != .inherit ||
-            controllerMode != .automatic || !controllerRumble || frameInterpolation == true || !arguments.isEmpty
+            controllerMode != .automatic || !controllerRumble || frameInterpolation == true ||
+            spatialAudioDiagnostics == true || !arguments.isEmpty
     }
 }
 

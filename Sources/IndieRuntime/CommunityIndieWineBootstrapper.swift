@@ -101,6 +101,20 @@ public actor CommunityIndieWineBootstrapper {
         return isCompleteRuntime(nested) ? nested : source
     }
 
+    /// Recognize our extracted build without misclassifying arbitrary Wine
+    /// distributions. Keeps the managed identity and full prerelease version
+    /// when the user imports through the application's general Wine picker.
+    static func managedBuildRoot(in source: URL) -> URL? {
+        for root in [source, source.appendingPathComponent("wine-runtime", isDirectory: true)] {
+            guard isCompleteRuntime(root), runtimeVersion(in: root) != nil,
+                  let data = try? Data(contentsOf: root.appendingPathComponent("source.lock.json")),
+                  let lock = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  lock["runtime"] as? String == "Mac Gaming Uncle Wine 11" else { continue }
+            return root
+        }
+        return nil
+    }
+
     public static func isCompleteRuntime(_ root: URL) -> Bool {
         LocalWineImporter.findWine(in: root) != nil &&
             FileManager.default.isExecutableFile(atPath: root.appendingPathComponent("bin/wineserver").path) &&

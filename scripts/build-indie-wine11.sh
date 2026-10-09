@@ -15,9 +15,13 @@ indie_inotify_url="https://github.com/libinotify-kqueue/libinotify-kqueue/archiv
 indie_inotify_sha256="120398ff95336d04f3ce7ac820e0490059625976264100dcc9af9d11e992b0ca"
 indie_sdl_url="https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz"
 indie_sdl_sha256="5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165"
-indie_runtime_version="11.0.3-spatial.2"
+indie_runtime_version="11.0.9-services.1"
 indie_output_dir=${INDIE_WINE_OUTPUT_DIR:-"$indie_root/dist/runtime"}
 indie_work_root=${INDIE_WINE_BUILD_ROOT:-$(mktemp -d /tmp/indie-wine11.XXXXXX)}
+if [[ "$indie_work_root" == *[[:space:]]* ]]; then
+  print -u2 "上游 Autoconf 构建不支持含空白的构建目录；请将 INDIE_WINE_BUILD_ROOT 设为无空白的绝对路径（例如 /tmp/indie-wine11-build）。输出目录可以包含空格。"
+  exit 2
+fi
 indie_source_archive=${INDIE_WINE_SOURCE_ARCHIVE:-"$indie_work_root/crossover-sources-26.3.0.tar.gz"}
 indie_nettle_archive=${INDIE_NETTLE_SOURCE_ARCHIVE:-"$indie_work_root/nettle-3.10.tar.gz"}
 indie_inotify_archive=${INDIE_INOTIFY_SOURCE_ARCHIVE:-"$indie_work_root/libinotify-kqueue-20240724.tar.gz"}
@@ -218,6 +222,7 @@ arch -x86_64 /usr/bin/env \
   PKG_CONFIG=/opt/homebrew/bin/pkg-config \
   PKG_CONFIG_LIBDIR="$indie_dependency_root/lib/pkgconfig" \
   PATH="$indie_build_path" \
+  ac_cv_func_pipe2=no \
   "$indie_wine_source/configure" \
     --prefix="$indie_wine_install" \
     --enable-archs=i386,x86_64 \
@@ -277,7 +282,8 @@ for indie_library in ${(k)indie_library_ids}; do
 done
 find "$indie_stage/bin" "$indie_stage/lib" -type f -print0 | while IFS= read -r -d '' indie_macho; do
   if file "$indie_macho" | grep -q "Mach-O"; then
-    for indie_old_dependency in ${(f)$(otool -L "$indie_macho" | awk -v root="$indie_dependency_root/lib/" 'index($1, root) == 1 { print $1 }')}; do
+    for indie_old_dependency in "${(@f)$(otool -L "$indie_macho" | awk -v root="$indie_dependency_root/lib/" 'index($1, root) == 1 { print $1 }')}"; do
+      [[ -n "$indie_old_dependency" ]] || continue
       install_name_tool -change "$indie_old_dependency" "@rpath/${indie_old_dependency:t}" "$indie_macho"
     done
   fi
@@ -293,6 +299,8 @@ ditto "$indie_root/runtime/indie-wine11/source.lock.json" "$indie_stage/source.l
 ditto "$indie_root/patches/wine11" "$indie_stage/source-patches/wine11"
 ditto "$indie_root/docs/SPATIAL_AUDIO.md" "$indie_stage/licenses/Spatial-Audio-Provenance.md"
 print "$indie_runtime_version" > "$indie_stage/runtime-version.txt"
+python3 "$indie_root/scripts/record-wine-build.py" "$indie_stage"
+python3 "$indie_root/scripts/verify-wine-runtime.py" "$indie_stage" > "$indie_stage/package-audit.json"
 
 DYLD_LIBRARY_PATH="$indie_stage/lib" "$indie_stage/bin/wine" --version | grep -q "wine-11.0"
 # Normalize archive metadata so the same locked sources and toolchain produce

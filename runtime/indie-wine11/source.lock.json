@@ -56,7 +56,8 @@
     "0003-native-winedllpath-prepend.patch",
     "0004-spatial-audio-com.patch",
     "0005-spatial-audio-coreaudio.patch",
-    "0006-spatial-audio-tests.patch"
+    "0006-spatial-audio-tests.patch",
+    "0007-spatial-audio-services.patch"
   ],
   "runtimeFeatures": [
     "CodeWeavers macOS driver patches present in the published LGPL source",
@@ -80,9 +81,10 @@
     "0001-allow-d3dmetal-build-without-vulkan.patch": "9ffe9c0ab22f9a21f8a5403a7b26fc6bc2b27c2a08d89cb91b4d074db5ceaff8",
     "0002-remove-proprietary-compatdb-loader.patch": "f9280f6f4374ce17d3e11f5c91b441c9bfe3588260c67124265b225e0006f7f6",
     "0003-native-winedllpath-prepend.patch": "8c48a41c77bd682259b8195437896f8941f70d69aa98c8cfd790c9d54fec7b95",
-    "0004-spatial-audio-com.patch": "eb238e74918a3c53dd7a9ec5a7bc5548f8ce56c5c3eb2e09a07ea860faf1b9aa",
+    "0004-spatial-audio-com.patch": "6631c310b1115b71a688047472a68bdc183a28d802fbc24d35a27439c6c7b7bb",
     "0005-spatial-audio-coreaudio.patch": "33ad95044b65513e01a744037aa2ff615f0a784bb290560bb2a45a7d5dca28c3",
-    "0006-spatial-audio-tests.patch": "9a9c9d558200e662dbdfde8684a8265e08c8ed40d28e0068e412c75d6440e3ac"
+    "0006-spatial-audio-tests.patch": "53f30627488f4d7a9ccea89c74f70a20d85539534098c846c48a45492a5f77da",
+    "0007-spatial-audio-services.patch": "e002e892bdb30e3b76c8751edcb8f45599076e3b8002bce5755b81535d8e3d52"
   },
   "spatialAudioSource": {
     "repository": "https://github.com/jungwuk-ryu/switchyard-wine",

@@ -1,8 +1,10 @@
 #include <windows.h>
+#include <cwchar>
 
 static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam) {
     if (message == WM_KEYDOWN && wparam == VK_ESCAPE) { DestroyWindow(window); return 0; }
     if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
+    if (message == WM_TIMER && wparam == 1) { DestroyWindow(window); return 0; }
     if (message == WM_PAINT) {
         PAINTSTRUCT paint{};
         HDC dc = BeginPaint(window, &paint);
@@ -20,7 +22,7 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPA
     return DefWindowProcW(window, message, wparam, lparam);
 }
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int show) {
     WNDCLASSW klass{}; klass.lpfnWndProc = WindowProc; klass.hInstance = instance;
     klass.lpszClassName = L"IndieSmokeFixture"; klass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     if (!RegisterClassW(&klass)) return 10;
@@ -28,6 +30,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 450, nullptr, nullptr, instance, nullptr);
     if (!window) return 11;
     ShowWindow(window, show);
+    if (std::wcscmp(commandLine, L"--smoke") == 0 && !SetTimer(window, 1, 2000, nullptr)) return 12;
     MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0) { TranslateMessage(&message); DispatchMessageW(&message); }
     return static_cast<int>(message.wParam);

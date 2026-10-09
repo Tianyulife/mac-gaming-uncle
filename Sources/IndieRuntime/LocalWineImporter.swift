@@ -18,6 +18,9 @@ public actor LocalWineImporter {
     }
 
     public func importRuntime(from source: URL) async throws -> LocalWineRuntime {
+        if let managed = CommunityIndieWineBootstrapper.managedBuildRoot(in: source) {
+            return try await CommunityIndieWineBootstrapper(paths: paths).installLocalBuild(from: managed)
+        }
         try paths.createDirectories()
         guard let sourceWine = Self.findWine(in: source) else {
             throw IndieError.notFound(L("所选目录中没有 Wine 可执行文件"))

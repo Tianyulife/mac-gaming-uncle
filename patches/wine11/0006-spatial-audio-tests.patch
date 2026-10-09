@@ -1033,7 +1033,7 @@ index 2a7fd04..226084e 100644
 +    ok(hr == S_OK, "Failed to begin dynamic update: %#lx.\n", hr);
 +    if (hr != S_OK)
 +        goto cleanup;
-+    ok(!available, "Expected no capacity while all slots are retained, got %u.\n", available);
++    ok(available == limit, "Expected render capacity %u with allocated objects, got %u.\n", limit, available);
 +    ok(frames != 0, "Expected a nonzero dynamic update.\n");
 +
 +    for (i = 0; i < limit; ++i)

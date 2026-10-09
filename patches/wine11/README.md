@@ -21,3 +21,12 @@ The exact source URLs and checksums are in
 `runtime/indie-wine11/source.lock.json`. Run `scripts/build-indie-wine11.sh`
 to verify the archives, apply this series, build all open-source dependencies,
 and create the redistributable runtime archive.
+
+4. `0004-spatial-audio-com.patch` implements base spatial object streams and
+   reports per-pass dynamic rendering capacity independently of allocated slots.
+5. `0005-spatial-audio-coreaudio.patch` implements the CoreAudio spatial renderer
+   and shared transport.
+6. `0006-spatial-audio-tests.patch` validates spatial objects and endpoint loss.
+7. `0007-spatial-audio-services.patch` supplies retained IAudioClock/IAudioClock2
+   and IAudioStreamVolume services, CoreAudio device-frame/QPC reporting, base
+   stream availability, and API/lifecycle/invalidation tests.
