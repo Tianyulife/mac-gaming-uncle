@@ -1,6 +1,6 @@
+import AppKit
 import IndieCore
 import SwiftUI
-import IndieCore
 
 @main
 struct MacGamingUncleApplication: App {
@@ -19,6 +19,7 @@ struct MacGamingUncleApplication: App {
                     if #available(macOS 26, *) { AutomaticFrameInterpolation.shared.bind(model: model) }
                 }
         }
+        .commands { WindowOperationCommands() }
         .defaultSize(width: 1440, height: 920)
         .defaultPosition(.center)
         .windowStyle(.hiddenTitleBar)
