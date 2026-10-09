@@ -111,38 +111,57 @@ struct NativeSteamStoreView: View {
     }
 
     private var storeToolbar: some View {
-        HStack(spacing: 18) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(L("商店")).font(.system(size: 26, weight: .bold, design: .rounded))
-                Text(L("由 Steam 官方商店数据提供")).font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 18) {
+                storeTitle
+                storeCategories
+                Spacer(minLength: 18)
+                storeSearchControls
             }
-            Picker("", selection: $selection) {
-                Text(L("精选")).tag(NativeStoreSection.featured)
-                Text(L("畅销")).tag(NativeStoreSection.topSellers)
-                Text(L("优惠")).tag(NativeStoreSection.specials)
-                Text(L("新品")).tag(NativeStoreSection.newReleases)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack { storeTitle; Spacer(); storeCategories }
+                HStack { Spacer(); storeSearchControls }
             }
-            .pickerStyle(.segmented).frame(width: 300)
-            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 28).padding(.vertical, 16)
+        .background(IndiePalette.topBar.opacity(0.86))
+    }
+
+    private var storeTitle: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(L("商店")).font(.system(size: 26, weight: .bold, design: .rounded))
+            Text(L("由 Steam 官方商店数据提供")).font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        }.fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var storeCategories: some View {
+        Picker(L("商店分类"), selection: $selection) {
+            Text(L("精选")).tag(NativeStoreSection.featured)
+            Text(L("畅销")).tag(NativeStoreSection.topSellers)
+            Text(L("优惠")).tag(NativeStoreSection.specials)
+            Text(L("新品")).tag(NativeStoreSection.newReleases)
+        }.pickerStyle(.segmented).labelsHidden().frame(width: 300)
+    }
+
+    private var storeSearchControls: some View {
+        HStack(spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(IndiePalette.secondaryText)
                 TextField(L("搜索 Steam 商店"), text: $search)
                     .textFieldStyle(.plain).onSubmit { Task { await model.searchNativeSteamStore(search) } }
                 if !search.isEmpty {
-                    Button { search = ""; model.resetSteamSearch("") } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }.buttonStyle(.plain).foregroundStyle(IndiePalette.secondaryText)
+                    Button { search = ""; model.resetSteamSearch("") } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain).foregroundStyle(IndiePalette.secondaryText).help(L("清除搜索"))
                 }
             }
             .padding(.horizontal, 12).frame(width: 280, height: 36)
             .background(IndiePalette.surface, in: RoundedRectangle(cornerRadius: 9))
             Button(L("搜索")) { Task { await model.searchNativeSteamStore(search) } }
                 .buttonStyle(.borderedProminent).disabled(searchTerm.count < 2 || model.isSteamSearchLoading)
-            Button { Task { await model.loadNativeSteamStore(force: true) } } label: {
-                Image(systemName: "arrow.clockwise")
-            }.buttonStyle(.plain).help(L("刷新商店")).disabled(model.isSteamStoreLoading)
-        }
-        .padding(.horizontal, 28).frame(height: 76).background(IndiePalette.topBar.opacity(0.86))
+            Button { Task { await model.loadNativeSteamStore(force: true) } } label: { Image(systemName: "arrow.clockwise") }
+                .buttonStyle(.plain).help(L("刷新商店")).disabled(model.isSteamStoreLoading)
+        }.fixedSize(horizontal: true, vertical: false)
     }
 
     private func storeHero(_ item: SteamStoreItem) -> some View {
@@ -170,6 +189,7 @@ struct NativeSteamStoreView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(sectionTitle).font(.system(size: 12, weight: .bold)).foregroundStyle(IndiePalette.blue)
                 Text(item.name).font(.system(size: 36, weight: .bold, design: .rounded)).lineLimit(2)
+                    .minimumScaleFactor(0.8).help(item.name)
                 priceView(item)
                 HStack(spacing: 11) {
                     if let offline = model.offlineLibrary(for:item.id) {
@@ -204,14 +224,8 @@ struct NativeSteamStoreView: View {
     }
 
     private func storeSection(title: String, items: [SteamStoreItem]) -> some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack { Text(title).font(.system(size: 19, weight: .semibold)); Spacer(); Text(L("\(items.count) 款")).font(.caption).foregroundStyle(IndiePalette.secondaryText) }
-            ScrollView(.horizontal) {
-                HStack(spacing: 14) {
-                    ForEach(items.prefix(20)) { item in storeCard(item) }
-                }.padding(.vertical, 3)
-            }.scrollIndicators(.hidden)
-        }.padding(.horizontal, 28)
+        GameCarouselView(title: title, items: items, cardWidth: 258) { storeCard($0) }
+            .padding(.horizontal, 28)
     }
 
     private func storeCard(_ item: SteamStoreItem) -> some View {
@@ -220,7 +234,8 @@ struct NativeSteamStoreView: View {
                 AsyncImage(url: item.imageURL) { image in image.resizable().scaledToFill() }
                 placeholder: { IndiePalette.surfaceStrong }
                     .frame(width: 238, height: 112).clipped()
-                Text(item.name).font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
+                Text(item.name).font(.system(size: 13.5, weight: .semibold)).lineLimit(2)
+                    .frame(height: 36, alignment: .topLeading).help(item.name)
                 HStack { priceView(item); Spacer(); if item.discountPercent > 0 { Text("-\(item.discountPercent)%").foregroundStyle(IndiePalette.green) } }
                     .font(.caption)
             }

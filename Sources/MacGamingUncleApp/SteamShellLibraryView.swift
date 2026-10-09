@@ -64,29 +64,51 @@ struct SteamShellLibraryView: View {
     }
 
     private var libraryHeader: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(L("游戏库")).font(.system(size: 26, weight: .bold, design: .rounded))
-                Text(L("\(model.steamAccountGames.count) 款账户游戏 · \(model.steamGames.filter { $0.appID != 228980 }.count) 款已安装"))
-                    .font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                libraryTitle
+                librarySession
+                Spacer(minLength: 16)
+                libraryControls
             }
+            VStack(alignment: .leading, spacing: 14) {
+                HStack { libraryTitle; Spacer(); librarySession }
+                HStack { Spacer(); libraryControls }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24).padding(.vertical, 16)
+        .background(IndiePalette.sidebar.opacity(0.82))
+    }
+
+    private var libraryTitle: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(L("游戏库")).font(.system(size: 26, weight: .bold, design: .rounded))
+            Text(L("\(model.steamAccountGames.count) 款账户游戏 · \(model.steamGames.filter { $0.appID != 228980 }.count) 款已安装"))
+                .font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        }.fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var librarySession: some View {
+        HStack {
             if model.isSteamMetadataLoading {
                 ProgressView().controlSize(.small).help(L("正在补全游戏名称与封面…"))
             }
             SteamSessionIndicator(manager: model.steamSessionManager)
-            Spacer()
+        }.fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var libraryControls: some View {
+        HStack(spacing: 16) {
             Button(L("存储与游戏库"),systemImage:"externaldrive") { model.showSteamStorage = true }
-            Picker("", selection: $filter) {
+            Picker(L("游戏库筛选"), selection: $filter) {
                 Text(L("全部")).tag(SteamLibraryFilter.all)
                 Text(L("已安装")).tag(SteamLibraryFilter.installed)
                 Text(L("最近玩过")).tag(SteamLibraryFilter.recent)
-            }
-            .pickerStyle(.segmented).frame(width: 250)
+            }.pickerStyle(.segmented).labelsHidden().frame(width: 250)
             TextField(L("搜索游戏库"), text: $search).textFieldStyle(.roundedBorder).frame(width: 210)
             Button(L("刷新"), systemImage: "arrow.clockwise") { model.rescanSteam() }
-        }
-        .padding(.horizontal, 24).frame(height: 78)
-        .background(IndiePalette.sidebar.opacity(0.82))
+        }.fixedSize(horizontal: true, vertical: false)
     }
 
     private var gameList: some View {
@@ -98,7 +120,7 @@ struct SteamShellLibraryView: View {
                 }
                 .frame(width: 54, height: 31).clipShape(RoundedRectangle(cornerRadius: 4))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(game.name).lineLimit(1).font(.system(size: 13.5, weight: .medium))
+                    Text(game.name).lineLimit(2).font(.system(size: 13.5, weight: .medium)).help(game.name)
                     Text(model.offlineLibrary(for:game.appID) != nil ? L("磁盘未连接") : model.steamDownloads.first(where: { $0.appID == game.appID })?.installationLabel
                          ?? (game.isInstalled ? L("已安装") : playtime(game.playtimeMinutes)))
                         .font(.caption2).foregroundStyle(game.isInstalled ? IndiePalette.green : IndiePalette.secondaryText)
@@ -124,7 +146,8 @@ struct SteamShellLibraryView: View {
                     .frame(maxWidth: .infinity, minHeight: 300, maxHeight: 360).clipped()
                     LinearGradient(colors: [.clear, IndiePalette.canvas.opacity(0.98)], startPoint: .center, endPoint: .bottom)
                     VStack(alignment: .leading, spacing: 9) {
-                        Text(game.name).font(.system(size: 34, weight: .bold, design: .rounded)).shadow(radius: 8)
+                        Text(game.name).font(.system(size: 34, weight: .bold, design: .rounded))
+                            .lineLimit(2).minimumScaleFactor(0.8).help(game.name).shadow(radius: 8)
                         HStack(spacing: 15) {
                             Label(playtime(game.playtimeMinutes), systemImage: "clock")
                             if let date = game.lastPlayed { Label(L("上次游玩 \(AppLanguage.date(date))"), systemImage: "calendar") }
