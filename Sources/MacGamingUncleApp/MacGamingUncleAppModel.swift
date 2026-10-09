@@ -44,6 +44,8 @@ final class MacGamingUncleAppModel: ObservableObject {
     @Published var bottles: [BottleRecord] = []
     @Published var d3dMetal: [ImportedD3DMetal] = []
     @Published var wineRuntimes: [LocalWineRuntime] = []
+    @Published private(set) var selectedWineRuntimeID = UserDefaults.standard.string(forKey: "selectedWineRuntimeID")
+    @Published private(set) var runningWineRuntimeIDs: Set<String> = []
     @Published var rendererOverlays: [RendererOverlay] = []
     @Published var gameConfigurations: [String: GameConfiguration] = [:]
     @Published var isWorking = false
@@ -82,8 +84,43 @@ final class MacGamingUncleAppModel: ObservableObject {
     private var preferredD3DMetal: ImportedD3DMetal? {
         d3dMetal.first { $0.rendererRoot != nil }
     }
-    private var gamingWineRuntime: LocalWineRuntime? {
-        wineRuntimes.first { $0.manifest.id == CommunityIndieWineBootstrapper.runtimeID }
+    var gamingWineRuntime: LocalWineRuntime? {
+        LocalWineImporter.selectedGamingRuntime(in: wineRuntimes, preferredID: selectedWineRuntimeID)
+    }
+
+    func refreshWineUsage() {
+        runningWineRuntimeIDs = Set(wineRuntimes.filter {
+            WineProcessReaper.hasRunningProcesses(runtimeRoot: $0.root)
+        }.map(\.id))
+    }
+
+    func selectWineRuntime(_ runtime: LocalWineRuntime) async {
+        await perform(L("正在切换 Wine…")) {
+            self.refreshWineUsage()
+            guard self.runningWineRuntimeIDs.isEmpty else {
+                throw IndieError.invalidData(L("请先退出游戏和 Windows Steam，再切换 Wine"))
+            }
+            guard self.wineRuntimes.contains(runtime),
+                  runtime.manifest.id == CommunityIndieWineBootstrapper.runtimeID else {
+                throw IndieError.unsupported(L("游戏引擎只能选择 Mac Gaming Uncle Wine 版本"))
+            }
+            self.selectedWineRuntimeID = runtime.id
+            UserDefaults.standard.set(runtime.id, forKey: "selectedWineRuntimeID")
+            self.steamSessionManager.didStop()
+            self.status = L("Wine 已切换为 \(runtime.manifest.version)")
+        }
+    }
+
+    func deleteWineRuntime(_ runtime: LocalWineRuntime) async {
+        await perform(L("正在删除 Wine…")) {
+            guard runtime.id != self.gamingWineRuntime?.id else {
+                throw IndieError.invalidData(L("请先切换到其他 Wine，再删除当前使用的版本"))
+            }
+            try await self.wineImporter.removeRuntime(runtime)
+            self.wineRuntimes = await self.wineImporter.installed()
+            self.refreshWineUsage()
+            self.status = L("Wine 已移到废纸篓，游戏和容器已保留")
+        }
     }
     var gptkRuntimeVersion: String? { preferredD3DMetal?.version ?? preferredGPTKRuntime?.version }
     var d3dMetalRuntimeAvailable: Bool {

@@ -72,3 +72,11 @@ python3 scripts/smoke-wine-runtime.py /path/to/wine-runtime \
 ```
 
 冒烟脚本使用全新的临时 prefix，记录 32/64 位命令、窗口、内置 WineD3D D3D11、XInput 和可选双架构空间音频/普通音频测试。窗口测试会短暂显示窗口；`--smoke` 模式的 D3D11/12 探针须成功提交 120 帧，提前关闭不记为通过。XInput 返回“未连接手柄”单独记录，不能据此宣称实体手柄通过。脚本仅在该临时容器禁用附加组件，游戏默认配置不变。没有 D3DMetal 导入时不执行 D3D12，也不宣称 D3DMetal 通过。
+
+## Wine 版本管理
+
+在“高级设置 → 运行环境 → Wine 运行环境”核对“当前使用”和“正在运行”：前者为下次启动选择，后者根据该运行时目录内的真实进程检测，每两秒刷新。未手动选择时使用已安装的最新 Mac Gaming Uncle Wine；显式选择保留到下次打开应用，导入更高版本不会覆盖选择。普通本地 Wine 可以删除，但不作为 Mac Gaming Uncle 游戏引擎候选。
+
+切换前退出游戏及 Windows Steam；有 Wine 进程时拒绝切换。删除需确认，当前选择或仍在运行的版本无法删除。删除仅将应用管理的运行时目录移到废纸篓，保留容器、游戏及原始导入来源。自动化检查覆盖显式选择、失效选择回退、外部目录/符号链接保护和运行中版本拒绝删除。
+
+可使用 `MAC_GAMING_UNCLE_APP_DESTINATION=/absolute/path/Preview.app scripts/build-app.sh` 在独立目录构建开发应用，避免替换正在打开的应用包。

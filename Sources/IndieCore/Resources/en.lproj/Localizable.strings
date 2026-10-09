@@ -597,3 +597,33 @@
 "重试安装" = "Retry Installation";
 "Steam 尚未联机，请打开 Steam 客户端恢复连接后重试" = "Steam is not connected. Open Steam to restore the connection, then retry";
 "Steam 未联机" = "Steam disconnected";
+
+"正在运行" = "Running";
+
+"当前使用" = "Current selection";
+
+"使用此版本" = "Use this version";
+
+"删除 Wine 版本？" = "Delete Wine version?";
+
+"当前使用的版本用于下一次启动；切换前请先退出游戏和 Windows Steam。删除会移到废纸篓，保留游戏和容器。" = "The selected version is used on the next launch. Quit games and Windows Steam before switching. Deleted versions move to Trash; games and bottles are kept.";
+
+"将 %@ 移到废纸篓。游戏和容器不会被删除。" = "Move %@ to Trash. Games and bottles will be kept.";
+
+"正在切换 Wine…" = "Switching Wine…";
+
+"请先退出游戏和 Windows Steam，再切换 Wine" = "Quit games and Windows Steam before switching Wine";
+
+"游戏引擎只能选择 Mac Gaming Uncle Wine 版本" = "Select a Mac Gaming Uncle Wine version for the game engine";
+
+"Wine 已切换为 %@" = "Wine switched to %@";
+
+"正在删除 Wine…" = "Deleting Wine…";
+
+"请先切换到其他 Wine，再删除当前使用的版本" = "Switch to another Wine before deleting the current selection";
+
+"Wine 已移到废纸篓，游戏和容器已保留" = "Wine moved to Trash; games and bottles kept";
+
+"只能删除应用管理的已安装 Wine 版本" = "Only installed Wine versions managed by this app can be deleted";
+
+"这个 Wine 仍在运行，请先退出游戏和 Windows Steam" = "This Wine is still running. Quit games and Windows Steam first";

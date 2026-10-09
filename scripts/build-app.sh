@@ -3,7 +3,7 @@ set -euo pipefail
 
 project_root=${0:A:h:h}
 build_configuration=${MAC_GAMING_UNCLE_CONFIGURATION:-${INDIE_CONFIGURATION:-release}}
-app_destination="$project_root/dist/Mac Gaming Uncle.app"
+app_destination=${MAC_GAMING_UNCLE_APP_DESTINATION:-"$project_root/dist/Mac Gaming Uncle.app"}
 
 cd "$project_root"
 "$project_root/scripts/build-steam-wrapper.sh"
