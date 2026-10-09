@@ -3,6 +3,7 @@ set -euo pipefail
 
 indie_root=${0:A:h:h}
 cd "$indie_root"
+python3 scripts/test-wine11-patches.py
 swift test
 swift build -c release --product MacGamingUncleApp
 swift build -c release --product macgamingunclectl

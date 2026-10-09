@@ -1,0 +1,2 @@
+# Unified diff context lines include a required leading space on blank lines.
+patches/wine11/*.patch -whitespace

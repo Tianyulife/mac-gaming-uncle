@@ -42,7 +42,10 @@
   "buildToolchain": {
     "hostCompiler": "Apple Clang from Xcode 26.6",
     "peCompiler": "GCC 15.1.0 with MinGW-w64 12.0",
-    "peArchitectures": ["i386", "x86_64"],
+    "peArchitectures": [
+      "i386",
+      "x86_64"
+    ],
     "wow64Mode": "new WoW64",
     "sourceDateEpoch": 1768262400,
     "minimumMacOS": "15.0"
@@ -50,7 +53,10 @@
   "indiePatches": [
     "0001-allow-d3dmetal-build-without-vulkan.patch",
     "0002-remove-proprietary-compatdb-loader.patch",
-    "0003-native-winedllpath-prepend.patch"
+    "0003-native-winedllpath-prepend.patch",
+    "0004-spatial-audio-com.patch",
+    "0005-spatial-audio-coreaudio.patch",
+    "0006-spatial-audio-tests.patch"
   ],
   "runtimeFeatures": [
     "CodeWeavers macOS driver patches present in the published LGPL source",
@@ -58,7 +64,9 @@
     "new WoW64",
     "kqueue-backed inotify filesystem notifications",
     "native WINEDLLPATH_PREPEND support for user-imported D3DMetal",
-    "SDL2 winebus controller-to-XInput mapping"
+    "SDL2 winebus controller-to-XInput mapping",
+    "Windows static/dynamic spatial audio via CoreAudio Spatial Mixer (experimental; device and game validation required)",
+    "CoreAudio native physical output layout preservation (labels, coordinates and channel order), including 5.1.2 top-middle speakers"
   ],
   "licenses": [
     "LGPL-2.1-or-later",
@@ -67,5 +75,31 @@
     "MIT",
     "Zlib"
   ],
-  "closedSourcePayloads": []
+  "closedSourcePayloads": [],
+  "indiePatchSHA256": {
+    "0001-allow-d3dmetal-build-without-vulkan.patch": "9ffe9c0ab22f9a21f8a5403a7b26fc6bc2b27c2a08d89cb91b4d074db5ceaff8",
+    "0002-remove-proprietary-compatdb-loader.patch": "f9280f6f4374ce17d3e11f5c91b441c9bfe3588260c67124265b225e0006f7f6",
+    "0003-native-winedllpath-prepend.patch": "8c48a41c77bd682259b8195437896f8941f70d69aa98c8cfd790c9d54fec7b95",
+    "0004-spatial-audio-com.patch": "eb238e74918a3c53dd7a9ec5a7bc5548f8ce56c5c3eb2e09a07ea860faf1b9aa",
+    "0005-spatial-audio-coreaudio.patch": "33ad95044b65513e01a744037aa2ff615f0a784bb290560bb2a45a7d5dca28c3",
+    "0006-spatial-audio-tests.patch": "9a9c9d558200e662dbdfde8684a8265e08c8ed40d28e0068e412c75d6440e3ac"
+  },
+  "spatialAudioSource": {
+    "repository": "https://github.com/jungwuk-ryu/switchyard-wine",
+    "branch": "codex/macos-fex-pro-review-20261005",
+    "revision": "ba57a08921dfe8f3a4281692b040cd2fa5acd94e",
+    "commits": [
+      "4694d9dff307277abc5f27e68a80941898d0347d",
+      "33905f4e445eb90abc1615714e9cfbeda2bb4dbf",
+      "9806392a89eb5176a51f8d2fac68423d3634e322",
+      "71fd097e6119c1076b67b2b7462edfa4441f2980",
+      "db0f01e161e4abda59d574ad8ff5a991b0e4b075"
+    ],
+    "license": "LGPL-2.1-or-later",
+    "scope": "Windows Spatial Audio COM, shared Unix transport, CoreAudio renderer and tests; no FEX or translation changes",
+    "prerequisiteCommits": [
+      "e237972495de7a70aef6587f332236292d69fa22",
+      "d39f7c2e8958c0735d10074985ac81698b8dd023"
+    ]
+  }
 }

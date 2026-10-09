@@ -13,6 +13,7 @@ Indie does not redistribute these components in this repository. When users or r
 | Steam | Store client and game delivery | Valve/Steam terms; user-installed only |
 | Steam WebHelper wrapper | Forces Wine-compatible CEF process mode | MIT, copyright 2026 notpop |
 | Indie Wine 11 runtime | Wine 11 macOS host, new WoW64, MSync and Indie patches | Wine LGPL-2.1-or-later; corresponding CodeWeavers FOSS source and patch set are published with the runtime |
+| Switchyard Wine spatial audio patches | Windows object audio to CoreAudio Spatial Mixer; author jungwuk-ryu, exact source commits in docs/SPATIAL_AUDIO.md | LGPL-2.1-or-later |
 | FreeType | Wine font rendering | FreeType License or GPL-2.0-only |
 | GnuTLS, GMP, Nettle | Wine TLS and cryptography support | LGPL-2.1-or-later / LGPL-3.0-or-later and component-specific notices |
 | libinotify-kqueue | kqueue-backed filesystem notifications for wineserver | MIT |

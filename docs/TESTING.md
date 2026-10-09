@@ -6,7 +6,7 @@
 scripts/check.sh
 ```
 
-该命令运行 Swift 单元测试、Release 构建以及四个 Windows 测试程序的交叉编译。当前测试覆盖：
+该命令运行 Wine 补丁校验测试、Swift 单元测试、Release 构建以及四个 Windows 测试程序的交叉编译。当前测试覆盖：
 
 - 模型 JSON 往返、SemVer、SQLite 持久化；
 - Ed25519 Manifest 验签、渲染器优先级、内核反作弊阻断；
@@ -32,3 +32,7 @@ scripts/check.sh
 必须验证：损坏哈希/签名、非 Apple GPTK、双层 DMG 中断、错误 DLL Overlay、磁盘不足、中文/空格路径、外置盘、Bottle 并发锁、Wine 非零退出、快照回退和离线启动。
 
 正式发布不能要求 `sudo`、关闭 SIP/Gatekeeper，或对用户目录执行递归 quarantine 清除。
+
+## 实验空间音频
+
+补丁回放、双架构编译和空间对象/设备失效测试见 [SPATIAL_AUDIO.md](SPATIAL_AUDIO.md)。本机结果单独记录在 [SPATIAL_AUDIO_VALIDATION.md](SPATIAL_AUDIO_VALIDATION.md)。普通音频、D3DMetal、手柄和物理多声道仍分别验收。

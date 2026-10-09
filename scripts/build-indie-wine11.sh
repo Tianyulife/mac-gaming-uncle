@@ -15,7 +15,7 @@ indie_inotify_url="https://github.com/libinotify-kqueue/libinotify-kqueue/archiv
 indie_inotify_sha256="120398ff95336d04f3ce7ac820e0490059625976264100dcc9af9d11e992b0ca"
 indie_sdl_url="https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz"
 indie_sdl_sha256="5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165"
-indie_runtime_version="11.0.2"
+indie_runtime_version="11.0.3-spatial.2"
 indie_output_dir=${INDIE_WINE_OUTPUT_DIR:-"$indie_root/dist/runtime"}
 indie_work_root=${INDIE_WINE_BUILD_ROOT:-$(mktemp -d /tmp/indie-wine11.XXXXXX)}
 indie_source_archive=${INDIE_WINE_SOURCE_ARCHIVE:-"$indie_work_root/crossover-sources-26.3.0.tar.gz"}
@@ -38,7 +38,7 @@ indie_stage_parent="$indie_work_root/package"
 indie_stage="$indie_stage_parent/wine-runtime"
 indie_archive="$indie_output_dir/indie-wine-$indie_runtime_version-macos-x86_64.tar.xz"
 
-for indie_tool in autoreconf cmake curl make patch shasum tar xcrun; do
+for indie_tool in autoreconf cmake curl make patch python3 shasum tar xcrun; do
   if ! command -v "$indie_tool" >/dev/null 2>&1; then
     print -u2 "缺少构建工具：$indie_tool"
     print -u2 "建议安装：brew install cmake bison flex llvm lld"
@@ -107,9 +107,7 @@ if [[ ! -f "$indie_wine_source/configure" || ! -f "$indie_freetype_source/CMakeL
   exit 4
 fi
 
-for indie_patch in "$indie_root"/patches/wine11/*.patch(N); do
-  patch -d "$indie_wine_source" -p1 < "$indie_patch"
-done
+python3 "$indie_root/scripts/apply-wine11-patches.py" "$indie_wine_source"
 
 tar -xf "$indie_nettle_archive" -C "$indie_work_root"
 tar -xf "$indie_inotify_archive" -C "$indie_work_root"
@@ -292,6 +290,8 @@ ditto "$indie_gnutls_source/LICENSE" "$indie_stage/licenses/GnuTLS-License.txt"
 ditto "$indie_inotify_source/LICENSE" "$indie_stage/licenses/libinotify-kqueue-MIT.txt"
 ditto "$indie_sdl_source/LICENSE.txt" "$indie_stage/licenses/SDL2-Zlib.txt"
 ditto "$indie_root/runtime/indie-wine11/source.lock.json" "$indie_stage/source.lock.json"
+ditto "$indie_root/patches/wine11" "$indie_stage/source-patches/wine11"
+ditto "$indie_root/docs/SPATIAL_AUDIO.md" "$indie_stage/licenses/Spatial-Audio-Provenance.md"
 print "$indie_runtime_version" > "$indie_stage/runtime-version.txt"
 
 DYLD_LIBRARY_PATH="$indie_stage/lib" "$indie_stage/bin/wine" --version | grep -q "wine-11.0"
