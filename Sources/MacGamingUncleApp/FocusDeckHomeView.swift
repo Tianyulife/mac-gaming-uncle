@@ -69,8 +69,8 @@ struct FocusDeckHomeView: View {
                         Label(L("兼容性优秀"), systemImage: "checkmark.seal.fill")
                             .foregroundStyle(IndiePalette.green)
                         Label(
-                            model.steamSessionManager.state == .running ? L("云存档已同步") : L("Steam 待连接"),
-                            systemImage: model.steamSessionManager.state == .running ? "cloud.fill" : "cloud"
+                            model.steamCloudLabel(for: game.appID),
+                            systemImage: model.steamCloudStates[game.appID] == .synced ? "cloud.fill" : "cloud"
                         )
                         .foregroundStyle(Color.white.opacity(0.72))
                     }

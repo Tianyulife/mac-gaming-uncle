@@ -62,8 +62,19 @@ final class UncleApplicationDelegate: NSObject, NSApplicationDelegate {
         guard let model else { return .terminateNow }
         if shutdownTask == nil {
             shutdownTask = Task { @MainActor in
-                await model.shutdownManagedSteam()
-                sender.reply(toApplicationShouldTerminate: true)
+                let stopped = await model.shutdownManagedSteam()
+                if stopped {
+                    sender.reply(toApplicationShouldTerminate: true)
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = L("Steam 仍需要运行")
+                    alert.informativeText = L("游戏、云存档上传或客户端退出尚未确认。可取消退出继续等待，或仅退出 Mac Gaming Uncle 并保留 Steam 后台运行。")
+                    alert.addButton(withTitle: L("取消退出，继续等待"))
+                    alert.addButton(withTitle: L("退出应用，保留 Steam"))
+                    let quitOnlyApp = alert.runModal() == .alertSecondButtonReturn
+                    self.shutdownTask = nil
+                    sender.reply(toApplicationShouldTerminate: quitOnlyApp)
+                }
             }
         }
         return .terminateLater

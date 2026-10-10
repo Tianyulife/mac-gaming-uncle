@@ -92,7 +92,12 @@ public enum SteamCompatibilityManager {
         environment.removeValue(forKey: "SteamAppId")
         environment.removeValue(forKey: "SteamGameId")
         environment["WINE_WAIT_CHILD_PIPE_IGNORE"] = "steam.exe"
-        let compatibility = "mscoree,mshtml=;winedbg.exe=d"
+        // Do not disable mscoree/mshtml on a long-lived Steam process: these
+        // overrides are inherited by every game. Wukong imports mscoree.dll
+        // even though its executable is native and fails with c0000135 when
+        // the Wine builtin is disabled. Installer-only overrides stay on the
+        // short-lived setup process, not in the shared game environment.
+        let compatibility = "winedbg.exe=d"
         if let overrides = environment["WINEDLLOVERRIDES"], !overrides.isEmpty {
             environment["WINEDLLOVERRIDES"] = overrides + ";" + compatibility
         } else {

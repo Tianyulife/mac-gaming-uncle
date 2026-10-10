@@ -597,3 +597,42 @@
 "重试安装" = "Retry Installation";
 "Steam 尚未联机，请打开 Steam 客户端恢复连接后重试" = "Steam is not connected. Open Steam to restore the connection, then retry";
 "Steam 未联机" = "Steam disconnected";
+"等待 Steam 提供下载大小…" = "Waiting for download size from Steam…";
+
+"云存档：游戏运行中" = "Cloud saves: game running";
+
+"云存档：Steam 待连接" = "Cloud saves: Steam disconnected";
+
+"云存档状态未确认" = "Cloud save status unconfirmed";
+
+"正在检查云存档…" = "Checking cloud saves…";
+
+"正在下载云存档…" = "Downloading cloud saves…";
+
+"正在上传云存档…" = "Uploading cloud saves…";
+
+"Steam 已确认云存档同步" = "Steam confirmed cloud save sync";
+
+"云存档同步失败，请查看 Steam" = "Cloud save sync failed; check Steam";
+
+"正在等待 Steam 上传云存档…" = "Waiting for Steam to upload cloud saves…";
+
+"云存档上传尚未确认，已保留 Steam；请打开 Steam 客户端检查同步状态后重试" = "Cloud upload is unconfirmed. Steam has been kept running; check sync in the Steam client and retry.";
+
+"云同步或游戏状态尚未确认，Steam 将继续运行" = "Cloud sync or game status is unconfirmed; Steam will keep running";
+
+"Steam 仍需要运行" = "Steam needs to keep running";
+
+"游戏、云存档上传或客户端退出尚未确认。可取消退出继续等待，或仅退出 Mac Gaming Uncle 并保留 Steam 后台运行。" = "Game, cloud upload, or client shutdown is unconfirmed. Cancel quitting to keep waiting, or quit only Mac Gaming Uncle and leave Steam running in the background.";
+
+"取消退出，继续等待" = "Cancel quitting and keep waiting";
+
+"退出应用，保留 Steam" = "Quit app and keep Steam running";
+
+"Steam 显示配置" = "Steam display configuration";
+
+"Steam 中文字体注册" = "Steam CJK font registration";
+
+"正在配置 Steam 显示…" = "Configuring Steam display…";
+
+"%@（已清理残留进程并重试；诊断日志：%@）" = "%@ (stale processes cleared and retried; diagnostic log: %@)";
