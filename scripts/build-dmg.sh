@@ -35,10 +35,16 @@ trap cleanup EXIT
 for resource_name in MacGamingUncle_IndieCore.bundle MacGamingUncle_IndieCatalog.bundle MacGamingUncle_MacGamingUncleApp.bundle; do
   /bin/test -d "$mount_point/Mac Gaming Uncle.app/Contents/Resources/$resource_name"
 done
-/bin/test -f "$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_IndieCatalog.bundle/grim-dawn.json"
-/bin/test -f "$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_MacGamingUncleApp.bundle/uncle-apple.png"
+catalog_resources="$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_IndieCatalog.bundle"
+app_resources="$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_MacGamingUncleApp.bundle"
+core_resources="$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_IndieCore.bundle"
+[[ ! -d "$catalog_resources/Contents/Resources" ]] || catalog_resources="$catalog_resources/Contents/Resources"
+[[ ! -d "$app_resources/Contents/Resources" ]] || app_resources="$app_resources/Contents/Resources"
+[[ ! -d "$core_resources/Contents/Resources" ]] || core_resources="$core_resources/Contents/Resources"
+/bin/test -f "$catalog_resources/grim-dawn.json"
+/bin/test -f "$app_resources/uncle-apple.png"
 for app_language in en zh-Hans; do
-  /bin/test -f "$mount_point/Mac Gaming Uncle.app/Contents/Resources/MacGamingUncle_IndieCore.bundle/$app_language.lproj/Localizable.strings"
+  /bin/test -f "$core_resources/$app_language.lproj/Localizable.strings"
 done
 /usr/bin/hdiutil detach "$mount_point" >/dev/null
 

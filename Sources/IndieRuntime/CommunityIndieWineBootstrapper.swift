@@ -7,7 +7,7 @@ import IndieCore
 /// dependencies. Apple D3DMetal remains a separate, user-imported component.
 public actor CommunityIndieWineBootstrapper {
     public static let runtimeID = "org.indie.wine11"
-    public static let version = SemanticVersion(major: 11, minor: 0, patch: 2)
+    public static let version = SemanticVersion(major: 11, minor: 0, patch: 9, prerelease: "services.1")
 
     private let paths: IndiePaths
     private let session: URLSession
@@ -165,9 +165,9 @@ public actor CommunityIndieWineBootstrapper {
             supportsMSync: true
         ),
         artifacts: [ArtifactDescriptor(
-            url: URL(string: "https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.3.0/indie-wine-11.0.2-macos-x86_64.tar.xz")!,
-            sha256: "412d2135f70683c34e80f50c4fa209a53be8ec9656dd51dcb92af8049fce3150",
-            size: 46_596_600,
+            url: URL(string: "https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/indie-wine-11.0.9-services.1-macos-x86_64.tar.xz")!,
+            sha256: "31d2aee839c5c187eb439cb8137309a15d121993867362670c52bf5ab427c47a",
+            size: 46_689_536,
             archiveRoot: "wine-runtime"
         )],
         licenses: [
@@ -192,6 +192,6 @@ public actor CommunityIndieWineBootstrapper {
                 correspondingSourceURL: URL(string: "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz")!
             ),
         ],
-        publishedAt: Date(timeIntervalSince1970: 1_788_576_603)
+        publishedAt: Date(timeIntervalSince1970: 1_791_648_000)
     )
 }

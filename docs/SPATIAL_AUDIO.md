@@ -112,7 +112,7 @@ labels, tag/bitmap expansion, and verified stereo fallback.
 
 The full runtime build uses seven hash-locked patches and emits
 `11.0.9-services.1`, including the rendering-capacity fix and audio services,
-to distinguish it from the shipped `11.0.2` runtime:
+to distinguish it from the previous `11.0.2` runtime:
 
 ```sh
 scripts/build-indie-wine11.sh
@@ -126,8 +126,11 @@ when overriding the default temporary build directory. The output directory
 may contain spaces. See `docs/TESTING.md` for extracted-artifact and product
 importer integration checks.
 
-The default download URL/hash in the application is unchanged: no experimental
-runtime has been released. Import a locally built runtime to evaluate it.
+Starting with app release `0.6.0`, the default installer downloads the published
+`11.0.9-services.1` archive with its own pinned SHA-256. Existing users can install
+the latest version in Advanced Settings, quit games and Windows Steam after cloud
+sync, then select the new Wine version. Explicit older selections remain intact.
+Local builds can still be imported for development. See [release notes](releases/0.6.0.md).
 
 To replay patches on a clean, hash-verified extraction:
 

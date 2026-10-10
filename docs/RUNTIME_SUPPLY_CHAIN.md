@@ -39,4 +39,4 @@ DXMT、DXVK 和 VKD3D 以独立 Overlay 存放，不能修改已安装 Runtime�
 
 ## 实验空间音频构建
 
-空间音频补丁来源、适配与验证要求见 [SPATIAL_AUDIO.md](SPATIAL_AUDIO.md)。构建脚本按 source.lock.json 的顺序和 SHA-256 校验应用补丁，并将完整补丁集打包进运行时。新构建版本为 11.0.3-spatial.2；应用默认下载仍使用现有 11.0.2 制品，不能以旧哈希代表新构建。
+空间音频补丁来源、适配与验证要求见 [SPATIAL_AUDIO.md](SPATIAL_AUDIO.md)。构建脚本按 source.lock.json 的顺序和 SHA-256 校验应用补丁，并将完整补丁集打包进运行时。0.6.0 发布 `11.0.9-services.1` 并将应用默认下载指向其独立 SHA-256 校验的制品；旧 `11.0.2` 的哈希不用于新构建。实际构建工具链与依赖审计分别记录于 `build-info.json` 和 `package-audit.json`。

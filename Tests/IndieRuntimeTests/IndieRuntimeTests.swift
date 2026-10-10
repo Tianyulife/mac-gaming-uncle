@@ -184,7 +184,7 @@ final class IndieRuntimeTests: XCTestCase {
     func testIndieWine11RuntimeManifestIsPinned() {
         let manifest = CommunityIndieWineBootstrapper.manifest
         XCTAssertEqual(manifest.id, "org.indie.wine11")
-        XCTAssertEqual(manifest.version, SemanticVersion(major: 11, minor: 0, patch: 2))
+        XCTAssertEqual(manifest.version, SemanticVersion(major: 11, minor: 0, patch: 9, prerelease: "services.1"))
         XCTAssertEqual(manifest.artifacts.count, 1)
         XCTAssertTrue(manifest.artifacts.allSatisfy { $0.sha256.count == 64 && $0.size > 0 })
         XCTAssertTrue(manifest.capabilities.renderers.contains(.d3dMetal))

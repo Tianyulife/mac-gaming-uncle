@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-11",
+  "applicationVersion": "0.6.0",
+  "runtimeVersion": "11.0.9-services.1",
+  "pullRequest": {
+    "number": 3,
+    "url": "https://github.com/enginefuture/mac-gaming-uncle/pull/3",
+    "head": "affc39dca3347549665a595a9ea48d58f2f73608"
+  },
+  "localFixesCommit": "bf1ada9",
+  "integrationMergeCommit": "ca4f9c12de283f497a0c0ba1cbc6651d9c159ce1",
+  "swiftRegression": {
+    "tests": 122,
+    "skipped": 4,
+    "failures": 0
+  },
+  "realProductIntegration": {
+    "tests": 2,
+    "skipped": 0,
+    "failures": 0,
+    "scope": [
+      "managed runtime import, Chinese/space paths and Bottle initialization",
+      "locally imported GPTK 4.0b2, D3D11 and D3D12 smoke fixtures"
+    ]
+  },
+  "nativeLayoutHelper": "passed: 5.1.2, reordered channels, coordinates/identity, malformed/count mismatch, unknown/discrete, tag/bitmap expansion",
+  "runtimeAudit": {
+    "runtimeVersion": "11.0.9-services.1",
+    "machOCount": 38,
+    "dependencies": [
+      "/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation",
+      "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit",
+      "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices",
+      "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox",
+      "/System/Library/Frameworks/AudioUnit.framework/Versions/A/AudioUnit",
+      "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon",
+      "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa",
+      "/System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio",
+      "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "/System/Library/Frameworks/CoreHaptics.framework/Versions/A/CoreHaptics",
+      "/System/Library/Frameworks/CoreMIDI.framework/Versions/A/CoreMIDI",
+      "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+      "/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText",
+      "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "/System/Library/Frameworks/DiskArbitration.framework/Versions/A/DiskArbitration",
+      "/System/Library/Frameworks/ForceFeedback.framework/Versions/A/ForceFeedback",
+      "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "/System/Library/Frameworks/GameController.framework/Versions/A/GameController",
+      "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+      "/System/Library/Frameworks/Metal.framework/Versions/A/Metal",
+      "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL",
+      "/System/Library/Frameworks/PCSC.framework/Versions/A/PCSC",
+      "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+      "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration",
+      "/usr/lib/libSystem.B.dylib",
+      "/usr/lib/libobjc.A.dylib",
+      "/usr/lib/libresolv.9.dylib",
+      "/usr/lib/libz.1.dylib",
+      "@rpath/libgmp.10.dylib",
+      "@rpath/libhogweed.6.dylib",
+      "@rpath/libinotify.0.dylib",
+      "@rpath/libnettle.8.dylib",
+      "@rpath/ntdll.so",
+      "@rpath/win32u.so"
+    ],
+    "errors": [],
+    "passed": true
+  },
+  "artifactSmokeBuiltInOutput": {
+    "output": "built-in stereo speakers, 48 kHz",
+    "results": [
+      {
+        "name": "wineboot",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 12.76,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.13,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 4.98,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.11,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.17,
+        "summaries": []
+      },
+      {
+        "name": "indie-d3d11-fixture",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.33,
+        "summaries": []
+      },
+      {
+        "name": "xinput",
+        "exit": 2,
+        "status": "no-controller-connected",
+        "seconds": 6.01,
+        "summaries": []
+      },
+      {
+        "name": "x86_64-spatialaudio",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.54,
+        "summaries": [
+          "0020:spatialaudio: 3090 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "x86_64-render",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 64.1,
+        "summaries": [
+          "0020:render: 4456 tests executed (177 marked as todo, 0 as flaky, 0 failures), 2 skipped.\r"
+        ]
+      },
+      {
+        "name": "x86_64-mmdevenum",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.54,
+        "summaries": [
+          "0020:mmdevenum: 72 tests executed (0 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "x86_64-propstore",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.08,
+        "summaries": [
+          "0020:propstore: 139 tests executed (8 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "i386-spatialaudio",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.43,
+        "summaries": [
+          "0020:spatialaudio: 3090 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      }
+    ]
+  },
+  "initialDefaultOutputRun": {
+    "output": "Bluetooth stereo, 44.1 kHz initially; device disappeared during run and macOS default changed to built-in speakers",
+    "results": [
+      {
+        "name": "wineboot",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 32.97,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.18,
+        "summaries": []
+      },
+      {
+        "name": "cmd-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.1,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x64",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.28,
+        "summaries": []
+      },
+      {
+        "name": "indie-smoke-x86",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.31,
+        "summaries": []
+      },
+      {
+        "name": "indie-d3d11-fixture",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 8.29,
+        "summaries": []
+      },
+      {
+        "name": "xinput",
+        "exit": 2,
+        "status": "no-controller-connected",
+        "seconds": 6.05,
+        "summaries": []
+      },
+      {
+        "name": "x86_64-spatialaudio",
+        "exit": 5,
+        "status": "failed",
+        "seconds": 8.72,
+        "summaries": []
+      },
+      {
+        "name": "x86_64-render",
+        "exit": 5,
+        "status": "failed",
+        "seconds": 46.83,
+        "summaries": []
+      },
+      {
+        "name": "x86_64-mmdevenum",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.4,
+        "summaries": [
+          "0020:mmdevenum: 72 tests executed (0 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "x86_64-propstore",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 5.1,
+        "summaries": [
+          "0020:propstore: 139 tests executed (8 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      },
+      {
+        "name": "i386-spatialaudio",
+        "exit": 0,
+        "status": "passed",
+        "seconds": 7.56,
+        "summaries": [
+          "0020:spatialaudio: 3090 tests executed (2 marked as todo, 0 as flaky, 0 failures), 0 skipped.\r"
+        ]
+      }
+    ],
+    "conclusion": "Initial spatial/render failures retained; Bluetooth continuity and recovery remain unvalidated."
+  },
+  "packaging": {
+    "dmgMountAndChecksum": "passed",
+    "adHocSignatureVerification": "passed",
+    "packagedEnglishAndChinese": "passed",
+    "notarized": false
+  },
+  "artifacts": [
+    {
+      "name": "Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg",
+      "size": 5697169,
+      "sha256": "a09021fd5af3c18df778f06d0b6fb6cb0c074536e7cb0d1b418aa7c459a8c126"
+    },
+    {
+      "name": "indie-wine-11.0.9-services.1-macos-x86_64.tar.xz",
+      "size": 46689536,
+      "sha256": "31d2aee839c5c187eb439cb8137309a15d121993867362670c52bf5ab427c47a"
+    }
+  ],
+  "remainingValidation": [
+    "Bluetooth and device hotplug/sleep recovery",
+    "physical speaker direction and Windows volume-channel mapping",
+    "long-duration gameplay",
+    "real account/game cloud save cross-device round trip",
+    "physical controller not connected in this run"
+  ]
+}
