@@ -12,7 +12,7 @@
 
 Manifest Schema 位于 `Schemas/runtime-manifest.schema.json`。签名内容是移除 `signature` 字段后，通过 `IndieJSON` sorted-keys 编码得到的字节。Release 私钥不得进入仓库或 CI 日志；客户端只内置公钥。
 
-当前研究预览默认使用 `scripts/build-indie-wine11.sh` 生成的 Mac Gaming Uncle Wine 11 运行时。输入锁定为 CodeWeavers CrossOver 26.3.0 对应 FOSS 源码包（其中 Wine 为 11.0）、Nettle 3.10、SDL2 2.32.10 官方源码和仓库内的三项可审计补丁；不从 CrossOver 应用程序中提取或分发任何二进制。运行时包含新 WoW64、MSync、FreeType、GnuTLS、GMP、Nettle 与 SDL2 winebus 手柄桥接，不包含 D3DMetal。Release URL、体积和 SHA-256 固定在 `CommunityIndieWineBootstrapper` 中，安装前逐项验证。
+当前研究预览默认使用 `scripts/build-indie-wine11.sh` 生成的 Mac Gaming Uncle Wine 11 运行时。输入锁定为 CodeWeavers CrossOver 26.3.0 对应 FOSS 源码包（其中 Wine 为 11.0）、Nettle 3.10、SDL2 2.32.10 官方源码和仓库内的六项可审计补丁（含实验空间音频移植）；不从 CrossOver 应用程序中提取或分发任何二进制。运行时包含新 WoW64、MSync、FreeType、GnuTLS、GMP、Nettle 与 SDL2 winebus 手柄桥接，不包含 D3DMetal。Release URL、体积和 SHA-256 固定在 `CommunityIndieWineBootstrapper` 中，安装前逐项验证。
 
 仓库补丁实现两项原本由产品集成层完成的功能：移除专有 `cxcompatdb.so` 加载入口；让开源 Wine 的加载器原生读取 `WINEDLLPATH_PREPEND`，从而在内置 Wine DLL 之前选择用户本机导入的 D3DMetal Wine Bridge。Steam WebHelper 的 CEF 参数兼容由仓库内可重编译的小型 wrapper 完成。上述实现不复制 CodeWeavers 专有模块。
 
@@ -36,3 +36,7 @@ DXMT、DXVK 和 VKD3D 以独立 Overlay 存放，不能修改已安装 Runtime�
 ## 签名与公证
 
 取得 Developer ID 后，`scripts/build-app.sh` 使用 `INDIE_CODESIGN_IDENTITY` 签名。正式流水线必须启用 Hardened Runtime、执行 `notarytool submit --wait`、`stapler staple`、`spctl --assess`，再生成 DMG。主应用不申请 JIT 或关闭 Library Validation；若 Wine 运行时确需例外，只对 Wine 可执行文件使用经测试的最小 entitlement。
+
+## 实验空间音频构建
+
+空间音频补丁来源、适配与验证要求见 [SPATIAL_AUDIO.md](SPATIAL_AUDIO.md)。构建脚本按 source.lock.json 的顺序和 SHA-256 校验应用补丁，并将完整补丁集打包进运行时。新构建版本为 11.0.3-spatial.2；应用默认下载仍使用现有 11.0.2 制品，不能以旧哈希代表新构建。

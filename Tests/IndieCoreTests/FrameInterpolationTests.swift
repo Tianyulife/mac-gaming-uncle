@@ -22,11 +22,16 @@ final class FrameInterpolationTests: XCTestCase {
         let encoded = try IndieJSON.encoder().encode(original)
         let decoded = try IndieJSON.decoder().decode(GameConfiguration.self, from: encoded)
         XCTAssertNil(decoded.frameInterpolation)
+        XCTAssertNil(decoded.spatialAudioDiagnostics)
         XCTAssertFalse(decoded.isCustomized)
         var enabled = original
         enabled.frameInterpolation = true
         XCTAssertTrue(enabled.isCustomized)
         XCTAssertEqual(try IndieJSON.decoder().decode(GameConfiguration.self, from: IndieJSON.encoder().encode(enabled)).frameInterpolation, true)
         XCTAssertNil(GameConfiguration.steam(appID: 219990).frameInterpolation)
+        var diagnostic = original
+        diagnostic.spatialAudioDiagnostics = true
+        XCTAssertTrue(diagnostic.isCustomized)
+        XCTAssertEqual(try IndieJSON.decoder().decode(GameConfiguration.self, from: IndieJSON.encoder().encode(diagnostic)).spatialAudioDiagnostics, true)
     }
 }

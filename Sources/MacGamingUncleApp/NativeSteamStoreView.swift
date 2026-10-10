@@ -14,13 +14,15 @@ struct NativeSteamStoreView: View {
     @State private var securePage: SecurePageTarget?
 
     private var catalog: SteamStoreCatalog? { model.steamStoreCatalog }
+    private var searchTerm: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var showingSearch: Bool { !searchTerm.isEmpty }
     private var displayItems: [SteamStoreItem] {
         if !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return model.steamStoreSearchResults
         }
         guard let catalog else { return [] }
         return switch selection {
-        case .featured: Array((catalog.topSellers + catalog.specials).uniqued(by: \.id).prefix(24))
+        case .featured: Array(catalog.topSellers.prefix(24))
         case .topSellers: catalog.topSellers
         case .specials: catalog.specials
         case .newReleases: catalog.newReleases
@@ -32,12 +34,15 @@ struct NativeSteamStoreView: View {
         VStack(spacing: 0) {
             storeToolbar
             Divider().overlay(IndiePalette.border)
-            if let heroItem {
+            if showingSearch && (searchTerm.count < 2 || model.isSteamSearchLoading ||
+                model.steamSearchError != nil || !model.steamSearchCompleted || displayItems.isEmpty) {
+                searchStatus
+            } else if let heroItem {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 26) {
                         storeHero(heroItem)
                         storeSection(title: sectionTitle, items: displayItems)
-                        if search.isEmpty, let catalog {
+                        if !showingSearch, selection == .featured, let catalog {
                             storeSection(title: L("特别优惠"), items: catalog.specials)
                             storeSection(title: L("新品推荐"), items: catalog.newReleases)
                         }
@@ -60,6 +65,17 @@ struct NativeSteamStoreView: View {
         }
         .background(IndiePalette.canvas)
         .task { await model.loadNativeSteamStore() }
+        .task(id: searchTerm) {
+            guard searchTerm.count >= 2 else { return }
+            do { try await Task.sleep(for: .milliseconds(350)) }
+            catch { return }
+            await model.searchNativeSteamStore(searchTerm)
+        }
+        .onChange(of: search) { _, value in
+            model.resetSteamSearch(value)
+            selectedItem = nil
+        }
+        .onDisappear { model.resetSteamSearch("") }
         .onAppear { selectRequestedItem() }
         .onChange(of: model.steamStoreSelectedAppID) { _, _ in selectRequestedItem() }
         .onChange(of: displayItems.map(\.id)) { _, ids in
@@ -72,39 +88,80 @@ struct NativeSteamStoreView: View {
         }
     }
 
+    @ViewBuilder
+    private var searchStatus: some View {
+        if model.isSteamSearchLoading {
+            VStack(spacing: 14) { ProgressView(); Text(L("正在搜索 Steam 商店…")) }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView {
+                Label(model.steamSearchError != nil ? L("搜索失败") :
+                    (model.steamSearchCompleted ? L("没有找到匹配的游戏") : L("搜索 Steam 商店")),
+                    systemImage: model.steamSearchError != nil ? "wifi.exclamationmark" : "magnifyingglass")
+            } description: {
+                Text(model.steamSearchError ?? (searchTerm.count < 2 ? L("请输入至少两个字符") :
+                    (model.steamSearchCompleted ? L("试试游戏的英文名或更短的关键词") : L("即将搜索…"))))
+            } actions: {
+                if model.steamSearchError != nil {
+                    Button(L("重试")) { Task { await model.searchNativeSteamStore(searchTerm) } }
+                }
+                Button(L("返回精选")) { search = ""; model.resetSteamSearch("") }
+            }
+        }
+    }
+
     private var storeToolbar: some View {
-        HStack(spacing: 18) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(L("商店")).font(.system(size: 26, weight: .bold, design: .rounded))
-                Text(L("由 Steam 官方商店数据提供")).font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 18) {
+                storeTitle
+                storeCategories
+                Spacer(minLength: 18)
+                storeSearchControls
             }
-            Picker("", selection: $selection) {
-                Text(L("精选")).tag(NativeStoreSection.featured)
-                Text(L("畅销")).tag(NativeStoreSection.topSellers)
-                Text(L("优惠")).tag(NativeStoreSection.specials)
-                Text(L("新品")).tag(NativeStoreSection.newReleases)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack { storeTitle; Spacer(); storeCategories }
+                HStack { Spacer(); storeSearchControls }
             }
-            .pickerStyle(.segmented).frame(width: 300)
-            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 28).padding(.vertical, 16)
+        .background(IndiePalette.topBar.opacity(0.86))
+    }
+
+    private var storeTitle: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(L("商店")).font(.system(size: 26, weight: .bold, design: .rounded))
+            Text(L("由 Steam 官方商店数据提供")).font(.caption).foregroundStyle(IndiePalette.secondaryText)
+        }.fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var storeCategories: some View {
+        Picker(L("商店分类"), selection: $selection) {
+            Text(L("精选")).tag(NativeStoreSection.featured)
+            Text(L("畅销")).tag(NativeStoreSection.topSellers)
+            Text(L("优惠")).tag(NativeStoreSection.specials)
+            Text(L("新品")).tag(NativeStoreSection.newReleases)
+        }.pickerStyle(.segmented).labelsHidden().frame(width: 300)
+    }
+
+    private var storeSearchControls: some View {
+        HStack(spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(IndiePalette.secondaryText)
                 TextField(L("搜索 Steam 商店"), text: $search)
                     .textFieldStyle(.plain).onSubmit { Task { await model.searchNativeSteamStore(search) } }
                 if !search.isEmpty {
-                    Button { search = ""; model.steamStoreSearchResults = [] } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }.buttonStyle(.plain).foregroundStyle(IndiePalette.secondaryText)
+                    Button { search = ""; model.resetSteamSearch("") } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain).foregroundStyle(IndiePalette.secondaryText).help(L("清除搜索"))
                 }
             }
             .padding(.horizontal, 12).frame(width: 280, height: 36)
             .background(IndiePalette.surface, in: RoundedRectangle(cornerRadius: 9))
             Button(L("搜索")) { Task { await model.searchNativeSteamStore(search) } }
-                .buttonStyle(.borderedProminent).disabled(search.count < 2)
-            Button { Task { await model.loadNativeSteamStore(force: true) } } label: {
-                Image(systemName: "arrow.clockwise")
-            }.buttonStyle(.plain).help(L("刷新商店"))
-        }
-        .padding(.horizontal, 28).frame(height: 76).background(IndiePalette.topBar.opacity(0.86))
+                .buttonStyle(.borderedProminent).disabled(searchTerm.count < 2 || model.isSteamSearchLoading)
+            Button { Task { await model.loadNativeSteamStore(force: true) } } label: { Image(systemName: "arrow.clockwise") }
+                .buttonStyle(.plain).help(L("刷新商店")).disabled(model.isSteamStoreLoading)
+        }.fixedSize(horizontal: true, vertical: false)
     }
 
     private func storeHero(_ item: SteamStoreItem) -> some View {
@@ -112,9 +169,11 @@ struct NativeSteamStoreView: View {
             AsyncImage(url: URL(string: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/\(item.id)/page_bg_raw.jpg")) { phase in
                 if case .success(let image) = phase {
                     image.resizable().scaledToFill()
-                } else {
+                } else if case .failure = phase {
                     AsyncImage(url: item.imageURL) { image in image.resizable().scaledToFill() }
                     placeholder: { IndiePalette.surfaceStrong }
+                } else {
+                    IndiePalette.surfaceStrong
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 350, maxHeight: 350).clipped()
@@ -128,8 +187,9 @@ struct NativeSteamStoreView: View {
             )
             LinearGradient(colors: [.clear, IndiePalette.canvas.opacity(0.92)], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 12) {
-                Text(L("STEAM 精选")).font(.system(size: 12, weight: .bold)).foregroundStyle(IndiePalette.blue)
+                Text(sectionTitle).font(.system(size: 12, weight: .bold)).foregroundStyle(IndiePalette.blue)
                 Text(item.name).font(.system(size: 36, weight: .bold, design: .rounded)).lineLimit(2)
+                    .minimumScaleFactor(0.8).help(item.name)
                 priceView(item)
                 HStack(spacing: 11) {
                     if let offline = model.offlineLibrary(for:item.id) {
@@ -145,7 +205,8 @@ struct NativeSteamStoreView: View {
                             .buttonStyle(.borderedProminent).controlSize(.large)
                             .disabled(model.isWorking || model.gameLaunchStates[item.id]?.blocksLaunch == true)
                     } else {
-                        Button(L("安装游戏"), systemImage: "arrow.down.circle") {
+                        Button(model.steamAccountGames.contains(where: { $0.appID == item.id }) ? L("安装游戏") : L("在 Steam 中获取"),
+                               systemImage: model.steamAccountGames.contains(where: { $0.appID == item.id }) ? "arrow.down.circle" : "cart") {
                             Task { await model.installSteamGame(appID: item.id) }
                         }
                         .buttonStyle(.borderedProminent).controlSize(.large)
@@ -163,14 +224,8 @@ struct NativeSteamStoreView: View {
     }
 
     private func storeSection(title: String, items: [SteamStoreItem]) -> some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack { Text(title).font(.system(size: 19, weight: .semibold)); Spacer(); Text(L("\(items.count) 款")).font(.caption).foregroundStyle(IndiePalette.secondaryText) }
-            ScrollView(.horizontal) {
-                HStack(spacing: 14) {
-                    ForEach(items.prefix(20)) { item in storeCard(item) }
-                }.padding(.vertical, 3)
-            }.scrollIndicators(.hidden)
-        }.padding(.horizontal, 28)
+        GameCarouselView(title: title, items: items, cardWidth: 258) { storeCard($0) }
+            .padding(.horizontal, 28)
     }
 
     private func storeCard(_ item: SteamStoreItem) -> some View {
@@ -179,7 +234,8 @@ struct NativeSteamStoreView: View {
                 AsyncImage(url: item.imageURL) { image in image.resizable().scaledToFill() }
                 placeholder: { IndiePalette.surfaceStrong }
                     .frame(width: 238, height: 112).clipped()
-                Text(item.name).font(.system(size: 13.5, weight: .semibold)).lineLimit(1)
+                Text(item.name).font(.system(size: 13.5, weight: .semibold)).lineLimit(2)
+                    .frame(height: 36, alignment: .topLeading).help(item.name)
                 HStack { priceView(item); Spacer(); if item.discountPercent > 0 { Text("-\(item.discountPercent)%").foregroundStyle(IndiePalette.green) } }
                     .font(.caption)
             }
@@ -204,7 +260,7 @@ struct NativeSteamStoreView: View {
     private var sectionTitle: String {
         if !search.isEmpty { return L("搜索结果") }
         return switch selection {
-        case .featured: L("为你推荐")
+        case .featured: L("精选游戏")
         case .topSellers: L("热销商品")
         case .specials: L("特别优惠")
         case .newReleases: L("新品推荐")

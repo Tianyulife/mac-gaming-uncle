@@ -17,10 +17,11 @@ struct FocusDeckHomeView: View {
             if let game = selectedGame ?? games.first {
                 ScrollView {
                     VStack(spacing: 0) {
-                        hero(game, height: max(480, min(590, geometry.size.height * 0.61)))
+                        hero(game, height: max(560, min(650, geometry.size.height * 0.68)), width: geometry.size.width)
                         detailPanels(game)
                             .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 14)
                     }
+                    .frame(width: geometry.size.width)
                     .frame(minHeight: geometry.size.height)
                 }
                 .scrollIndicators(.hidden)
@@ -36,10 +37,10 @@ struct FocusDeckHomeView: View {
         .onChange(of: model.steamAccountGames.map(\.appID)) { _, _ in chooseInitialGame() }
     }
 
-    private func hero(_ game: SteamAccountGame, height: CGFloat) -> some View {
+    private func hero(_ game: SteamAccountGame, height: CGFloat, width: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             heroArtwork(game)
-            .frame(maxWidth: .infinity, minHeight: height, maxHeight: height).clipped()
+            .frame(width: width, height: height).clipped()
 
             LinearGradient(
                 stops: [
@@ -57,7 +58,7 @@ struct FocusDeckHomeView: View {
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(Color.white.opacity(0.72))
                     Text(game.name)
                         .font(.system(size: 46, weight: .bold, design: .rounded))
-                        .tracking(-0.8).lineLimit(1)
+                        .tracking(-0.8).lineLimit(2).minimumScaleFactor(0.75).help(game.name)
                     HStack(spacing: 20) {
                         Label(playtime(game.playtimeMinutes), systemImage: "clock")
                         if let date = game.lastPlayed {
@@ -66,8 +67,8 @@ struct FocusDeckHomeView: View {
                     }
                     .font(.system(size: 14, weight: .medium)).foregroundStyle(Color.white.opacity(0.67))
                     HStack(spacing: 24) {
-                        Label(L("兼容性优秀"), systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(IndiePalette.green)
+                        Label(L("兼容性需实测"), systemImage: "questionmark.circle")
+                            .foregroundStyle(Color.white.opacity(0.72))
                         Label(
                             model.steamCloudLabel(for: game.appID),
                             systemImage: model.steamCloudStates[game.appID] == .synced ? "cloud.fill" : "cloud"
@@ -94,53 +95,48 @@ struct FocusDeckHomeView: View {
 
                 Spacer(minLength: 28)
                 gameCarousel
+                    .frame(width: max(0, width - 116))
                     .padding(.horizontal, 58).padding(.bottom, 14)
             }
-            .frame(height: height)
+            .frame(width: width, height: height)
         }
-        .frame(height: height)
+        .frame(width: width, height: height)
     }
 
     private var gameCarousel: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 14) {
-                ForEach(games) { game in
-                    Button { withAnimation(.easeOut(duration: 0.2)) { selection = game.appID } } label: {
-                        ZStack(alignment: .bottomLeading) {
-                            AsyncImage(url: game.coverImageURL) { phase in
-                                if case .success(let image) = phase {
-                                    image.resizable().scaledToFill()
-                                } else {
-                                    AsyncImage(url: game.headerImageURL) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        IndiePalette.surfaceStrong.overlay(
-                                            Image(systemName: "gamecontroller.fill")
-                                                .font(.system(size: 24)).foregroundStyle(IndiePalette.secondaryText)
-                                        )
-                                    }
-                                }
+        GameCarouselView(title: L("你的游戏"), items: games, cardWidth: 132) { game in
+            Button { withAnimation(.easeOut(duration: 0.2)) { selection = game.appID } } label: {
+                ZStack(alignment: .bottomLeading) {
+                    AsyncImage(url: game.coverImageURL) { phase in
+                        if case .success(let image) = phase {
+                            image.resizable().scaledToFill()
+                        } else {
+                            AsyncImage(url: game.headerImageURL) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                IndiePalette.surfaceStrong.overlay(
+                                    Image(systemName: "gamecontroller.fill")
+                                        .font(.system(size: 24)).foregroundStyle(IndiePalette.secondaryText)
+                                )
                             }
-                            .frame(width: 132, height: 186).clipped()
-                            LinearGradient(colors: [.clear, Color.black.opacity(0.76)], startPoint: .center, endPoint: .bottom)
-                            Text(game.name).font(.system(size: 11.5, weight: .semibold)).lineLimit(2)
-                                .padding(9)
                         }
-                        .frame(width: 132, height: 186)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(
-                            selection == game.appID ? IndiePalette.blue : Color.white.opacity(0.14),
-                            lineWidth: selection == game.appID ? 2 : 1
-                        ))
-                        .shadow(color: selection == game.appID ? IndiePalette.blue.opacity(0.34) : .clear, radius: 12)
-                        .scaleEffect(selection == game.appID ? 1.035 : 1)
                     }
-                    .buttonStyle(.plain).accessibilityLabel(game.name)
+                    .frame(width: 132, height: 186).clipped()
+                    LinearGradient(colors: [.clear, Color.black.opacity(0.76)], startPoint: .center, endPoint: .bottom)
+                    Text(game.name).font(.system(size: 11.5, weight: .semibold)).lineLimit(2)
+                        .padding(9)
                 }
+                .frame(width: 132, height: 186)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(
+                    selection == game.appID ? IndiePalette.blue : Color.white.opacity(0.14),
+                    lineWidth: selection == game.appID ? 2 : 1
+                ))
+                .shadow(color: selection == game.appID ? IndiePalette.blue.opacity(0.34) : .clear, radius: 12)
+                .scaleEffect(selection == game.appID ? 1.035 : 1)
             }
-            .padding(.vertical, 10)
+            .buttonStyle(.plain).accessibilityLabel(game.name).help(game.name)
         }
-        .scrollIndicators(.hidden)
     }
 
     @ViewBuilder
@@ -237,7 +233,7 @@ struct FocusDeckHomeView: View {
         } description: {
             Text(L("Steam 登录后会自动同步游戏库，首次同步可能需要一些时间。"))
         } actions: {
-            Button(L("同步游戏库")) { model.syncSteamLibrary() }.buttonStyle(.borderedProminent)
+            Button(L("同步游戏库")) { Task { await model.syncSteamLibrary() } }.buttonStyle(.borderedProminent)
             Button(L("Steam 登录窗口")) { Task { await model.launchSteam() } }
                 .disabled(model.isWorking || model.onboardingBusy)
             Text(model.status).font(.caption).foregroundStyle(.secondary)

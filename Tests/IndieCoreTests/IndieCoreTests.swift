@@ -41,6 +41,7 @@ final class IndieCoreTests: XCTestCase {
         let first = GameConfiguration(
             id: "steam:10", virtualDesktop: .init(width: 1920, height: 1080),
             metalHUD: .enabled, controllerMode: .enhanced,
+            spatialAudioDiagnostics: true,
             updatedAt: Date(timeIntervalSince1970: 1_000_000)
         )
         let second = GameConfiguration(

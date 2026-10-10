@@ -3,6 +3,7 @@
 #include <dxgi1_4.h>
 #include <wrl/client.h>
 #include <cmath>
+#include <cwchar>
 
 using Microsoft::WRL::ComPtr;
 static constexpr UINT FrameCount = 2;
@@ -13,7 +14,9 @@ static LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPA
     return DefWindowProcW(window, message, wparam, lparam);
 }
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int show) {
+    const bool smoke = std::wcscmp(commandLine, L"--smoke") == 0;
+    unsigned frames = 0;
     WNDCLASSW klass{}; klass.lpfnWndProc = WindowProc; klass.hInstance = instance;
     klass.lpszClassName = L"IndieD3D12Fixture"; klass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     if (!RegisterClassW(&klass)) return 10;
@@ -25,7 +28,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
     ComPtr<ID3D12Device> device;
     if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return 20;
     if (FAILED(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)))) {
-        MessageBoxW(window, L"D3D12CreateDevice failed", L"Indie", MB_ICONERROR); return 21;
+        if (!smoke) MessageBoxW(window, L"D3D12CreateDevice failed", L"Indie", MB_ICONERROR); return 21;
     }
 
     D3D12_COMMAND_QUEUE_DESC queueDescription{};
@@ -98,13 +101,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show) {
         ++fenceValue; queue->Signal(fence.Get(), fenceValue);
         if (fence->GetCompletedValue() < fenceValue) {
             fence->SetEventOnCompletion(fenceValue, fenceEvent);
-            WaitForSingleObject(fenceEvent, INFINITE);
+            if (WaitForSingleObject(fenceEvent, smoke ? 10000 : INFINITE) != WAIT_OBJECT_0) { CloseHandle(fenceEvent); return 32; }
         }
+        if (smoke && ++frames == 120) DestroyWindow(window);
     }
     ++fenceValue; queue->Signal(fence.Get(), fenceValue);
     if (fence->GetCompletedValue() < fenceValue) {
-        fence->SetEventOnCompletion(fenceValue, fenceEvent); WaitForSingleObject(fenceEvent, INFINITE);
+        fence->SetEventOnCompletion(fenceValue, fenceEvent);
+        if (WaitForSingleObject(fenceEvent, smoke ? 10000 : INFINITE) != WAIT_OBJECT_0) { CloseHandle(fenceEvent); return 32; }
     }
     CloseHandle(fenceEvent);
-    return 0;
+    return smoke && frames != 120 ? 33 : 0;
 }

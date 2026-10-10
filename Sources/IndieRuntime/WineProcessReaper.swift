@@ -3,6 +3,9 @@ import Darwin
 import Foundation
 
 public enum WineProcessReaper {
+    public static func hasRunningProcesses(runtimeRoot: URL) -> Bool {
+        !processes(runtimeRoot: runtimeRoot).isEmpty
+    }
     /// Terminates processes whose real host executable belongs to Mac Gaming Uncle's
     /// private Wine runtime. This is a fallback for orphaned Wine clients that
     /// no longer respond to `wineserver -k` after the parent app has exited.
@@ -39,15 +42,16 @@ public enum WineProcessReaper {
         )
         guard byteCount > 0 else { return [] }
         let count = min(Int(byteCount) / MemoryLayout<Int32>.size, pids.count)
-        let prefix = runtimeRoot.standardizedFileURL.path + "/"
+        let prefix = runtimeRoot.resolvingSymlinksInPath().standardizedFileURL.path + "/"
         var result: [(Int32, URL)] = []
         for pid in pids.prefix(count) where pid > 1 && pid != getpid() {
             var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
             guard proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 else { continue }
             let bytes = pathBuffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
             let path = String(decoding: bytes, as: UTF8.self)
-            guard path.hasPrefix(prefix) else { continue }
-            result.append((pid, URL(fileURLWithPath: path)))
+            let executable = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL
+            guard executable.path.hasPrefix(prefix) else { continue }
+            result.append((pid, executable))
         }
         return result
     }

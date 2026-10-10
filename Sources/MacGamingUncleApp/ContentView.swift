@@ -54,7 +54,7 @@ struct ContentView: View {
         .background(WindowPlacementReader().frame(width: 0, height: 0))
         .task {
             while !Task.isCancelled {
-                model.syncSteamLibrary()
+                await model.syncSteamLibrary()
                 do { try await Task.sleep(for: .seconds(model.steamDownloads.isEmpty && model.steamInstallationRequests.isEmpty ? 5 : 1)) }
                 catch { return }
             }
@@ -826,11 +826,16 @@ struct AdvancedSettingsView: View {
 
 private struct RuntimeSettingsContent: View {
     @EnvironmentObject private var model: MacGamingUncleAppModel
+    @State private var pendingWineDeletion: LocalWineRuntime?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 advancedSection(title: L("Wine 运行环境"), detail: L("Mac Gaming Uncle 自行从 LGPL 源码构建 Wine 11 新 WoW64 运行时；不封装或分发 CrossOver 应用。")) {
-                    ForEach(model.wineRuntimes) { runtime in componentRow(name: runtime.manifest.displayName, status: L("已安装")) }
+                    ForEach(model.wineRuntimes) { runtime in
+                        wineRow(runtime)
+                    }
+                    Text(L("当前使用的版本用于下一次启动；切换前请先退出游戏和 Windows Steam。删除会移到废纸篓，保留游戏和容器。"))
+                        .font(.caption).foregroundStyle(.secondary)
                     HStack {
                         Button(L("自动安装最新版本")) { Task { await model.prepareEnvironment() } }.buttonStyle(.borderedProminent)
                         Button(L("导入本地 Wine")) { chooseWine() }
@@ -863,6 +868,27 @@ private struct RuntimeSettingsContent: View {
             }
             .padding(24)
         }
+        .task {
+            while !Task.isCancelled {
+                model.refreshWineUsage()
+                do { try await Task.sleep(for: .seconds(2)) }
+                catch { break }
+            }
+        }
+        .alert(L("删除 Wine 版本？"), isPresented: Binding(
+            get: { pendingWineDeletion != nil },
+            set: { if !$0 { pendingWineDeletion = nil } }
+        )) {
+            Button(L("取消"), role: .cancel) { pendingWineDeletion = nil }
+            Button(L("删除"), role: .destructive) {
+                if let runtime = pendingWineDeletion {
+                    Task { await model.deleteWineRuntime(runtime) }
+                }
+                pendingWineDeletion = nil
+            }
+        } message: {
+            Text(L("将 \(pendingWineDeletion?.manifest.displayName ?? "") 移到废纸篓。游戏和容器不会被删除。"))
+        }
     }
     private func advancedSection<Content: View>(title: String, detail: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -871,6 +897,26 @@ private struct RuntimeSettingsContent: View {
         .frame(maxWidth: .infinity, alignment: .leading).padding(18)
         .background(IndiePalette.surface, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(IndiePalette.border))
     }
+    private func wineRow(_ runtime: LocalWineRuntime) -> some View {
+        let selected = model.gamingWineRuntime?.id == runtime.id
+        let running = model.runningWineRuntimeIDs.contains(runtime.id)
+        return HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(runtime.manifest.displayName).font(.system(size: 13.5, weight: .medium))
+                Text(runtime.manifest.version.description).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if running { Text(L("正在运行")).foregroundStyle(IndiePalette.green) }
+            if selected { Label(L("当前使用"), systemImage: "checkmark.circle.fill").foregroundStyle(IndiePalette.green) }
+            if !selected && runtime.manifest.id == CommunityIndieWineBootstrapper.runtimeID {
+                Button(L("使用此版本")) { Task { await model.selectWineRuntime(runtime) } }
+                    .disabled(model.isWorking || !model.runningWineRuntimeIDs.isEmpty)
+            }
+            Button(L("删除"), role: .destructive) { pendingWineDeletion = runtime }
+                .disabled(model.isWorking || selected || running)
+        }.font(.system(size: 12.5))
+    }
+
     private func componentRow(name: String, status: String) -> some View {
         HStack { Image(systemName: "checkmark.circle.fill").foregroundStyle(IndiePalette.green); Text(name).font(.system(size: 13.5, weight: .medium)); Spacer(); Text(status).font(.system(size: 12.5)).foregroundStyle(IndiePalette.secondaryText) }
     }

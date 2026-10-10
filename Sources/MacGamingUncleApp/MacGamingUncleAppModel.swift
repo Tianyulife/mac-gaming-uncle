@@ -44,14 +44,27 @@ final class MacGamingUncleAppModel: ObservableObject {
     @Published var steamAccountGames: [SteamAccountGame] = []
     @Published var steamActivities: [UInt64: SteamGameActivity] = [:]
     @Published var steamStoreCatalog: SteamStoreCatalog?
-    @Published var steamStoreSearchResults: [SteamStoreItem] = []
+    @Published private(set) var steamSearchState = SteamStoreSearchState()
+    var steamStoreSearchResults: [SteamStoreItem] { steamSearchState.results }
     @Published var steamStoreSelectedAppID: UInt64?
     @Published var isSteamStoreLoading = false
     @Published var steamStoreError: String?
+    var isSteamSearchLoading: Bool { steamSearchState.isLoading }
+    var steamSearchQuery: String { steamSearchState.query }
+    var steamSearchCompleted: Bool { steamSearchState.completed }
+    var steamSearchError: String? { steamSearchState.error }
+    private var steamSearchTask: Task<[SteamStoreItem], Error>?
+    private let steamLibraryReader = SteamLibraryReader()
+    private var steamMetadataRetry = SteamMetadataRetryPolicy()
+    private var steamMetadataCacheLoaded = false
+    private var steamMetadataCacheLoadTask: Task<[UInt64: SteamStoreMetadataService.Metadata], Never>?
+    @Published private(set) var isSteamMetadataLoading = false
     @Published var requestedDestination: String?
     @Published var bottles: [BottleRecord] = []
     @Published var d3dMetal: [ImportedD3DMetal] = []
     @Published var wineRuntimes: [LocalWineRuntime] = []
+    @Published private(set) var selectedWineRuntimeID = UserDefaults.standard.string(forKey: "selectedWineRuntimeID")
+    @Published private(set) var runningWineRuntimeIDs: Set<String> = []
     @Published var rendererOverlays: [RendererOverlay] = []
     @Published var gameConfigurations: [String: GameConfiguration] = [:]
     @Published var isWorking = false
@@ -90,8 +103,43 @@ final class MacGamingUncleAppModel: ObservableObject {
     private var preferredD3DMetal: ImportedD3DMetal? {
         d3dMetal.first { $0.rendererRoot != nil }
     }
-    private var gamingWineRuntime: LocalWineRuntime? {
-        wineRuntimes.first { $0.manifest.id == CommunityIndieWineBootstrapper.runtimeID }
+    var gamingWineRuntime: LocalWineRuntime? {
+        LocalWineImporter.selectedGamingRuntime(in: wineRuntimes, preferredID: selectedWineRuntimeID)
+    }
+
+    func refreshWineUsage() {
+        runningWineRuntimeIDs = Set(wineRuntimes.filter {
+            WineProcessReaper.hasRunningProcesses(runtimeRoot: $0.root)
+        }.map(\.id))
+    }
+
+    func selectWineRuntime(_ runtime: LocalWineRuntime) async {
+        await perform(L("正在切换 Wine…")) {
+            self.refreshWineUsage()
+            guard self.runningWineRuntimeIDs.isEmpty else {
+                throw IndieError.invalidData(L("请先退出游戏和 Windows Steam，再切换 Wine"))
+            }
+            guard self.wineRuntimes.contains(runtime),
+                  runtime.manifest.id == CommunityIndieWineBootstrapper.runtimeID else {
+                throw IndieError.unsupported(L("游戏引擎只能选择 Mac Gaming Uncle Wine 版本"))
+            }
+            self.selectedWineRuntimeID = runtime.id
+            UserDefaults.standard.set(runtime.id, forKey: "selectedWineRuntimeID")
+            self.steamSessionManager.didStop()
+            self.status = L("Wine 已切换为 \(runtime.manifest.version)")
+        }
+    }
+
+    func deleteWineRuntime(_ runtime: LocalWineRuntime) async {
+        await perform(L("正在删除 Wine…")) {
+            guard runtime.id != self.gamingWineRuntime?.id else {
+                throw IndieError.invalidData(L("请先切换到其他 Wine，再删除当前使用的版本"))
+            }
+            try await self.wineImporter.removeRuntime(runtime)
+            self.wineRuntimes = await self.wineImporter.installed()
+            self.refreshWineUsage()
+            self.status = L("Wine 已移到废纸篓，游戏和容器已保留")
+        }
     }
     var gptkRuntimeVersion: String? { preferredD3DMetal?.version ?? preferredGPTKRuntime?.version }
     var d3dMetalRuntimeAvailable: Bool {
@@ -397,7 +445,7 @@ final class MacGamingUncleAppModel: ObservableObject {
         }
         steamSessionManager.didLaunch(.init(bottleID: bottle.id, runtimeID: runtime.manifest.id,
                                            environment: plan.environment, virtualDesktop: nil), reused: false)
-        try scanDefaultSteamLibrary()
+        try await scanDefaultSteamLibrary()
         UserDefaults.standard.set(true, forKey: "firstRunSteamLoginCompleted")
         onboardingStage = .complete
         requestedDestination = "library"
@@ -426,7 +474,7 @@ final class MacGamingUncleAppModel: ObservableObject {
             var loadedRecipes = try RecipeRepository.builtIn().recipes
             loadedRecipes.append(contentsOf: try RecipeRepository.load(from: paths.recipes).recipes)
             recipeRepository = RecipeRepository(recipes: loadedRecipes)
-            try scanDefaultSteamLibrary()
+            try await scanDefaultSteamLibrary()
             if self.steamSessionManager.state == .running,
                (self.steamBottle.map { SteamCompatibilityManager.isLoggedOn(in: $0) } != true) {
                 self.steamSessionManager.didStop()
@@ -555,7 +603,7 @@ final class MacGamingUncleAppModel: ObservableObject {
             guard SteamDownloadBridge.permitsPlay(
                 manifestReady: (try? SteamScanner.refreshed(game).isReadyToPlay) == true,
                 download: self.steamBridgeDownloads[game.appID]) else {
-                try self.scanDefaultSteamLibrary()
+                try await self.scanDefaultSteamLibrary()
                 throw IndieError.invalidData(L("游戏尚未安装完成，请等待 Steam 完成下载和校验"))
             }
             guard let bottle = self.steamBottle else {
@@ -669,6 +717,9 @@ final class MacGamingUncleAppModel: ObservableObject {
             }
 
             var gameEnvironment = environment
+            gameEnvironment.merge(SpatialAudioDiagnostics.environment(
+                enabled: configuration.spatialAudioDiagnostics == true
+            )) { _, configured in configured }
             gameEnvironment.merge(
                 ControllerLaunchEnvironment.make(
                     mode: configuration.controllerMode,
@@ -862,10 +913,13 @@ final class MacGamingUncleAppModel: ObservableObject {
     }
 
     func rescanSteam() {
-        do {
-            try scanDefaultSteamLibrary()
-            status = steamGames.isEmpty ? L("尚未发现已安装的 Steam 游戏") : L("发现 \(steamGames.count) 个 Steam 游戏")
-        } catch { present(error) }
+        Task {
+            do {
+                steamMetadataRetry.reset()
+                try await scanDefaultSteamLibrary()
+                status = steamGames.isEmpty ? L("尚未发现已安装的 Steam 游戏") : L("发现 \(steamGames.count) 个 Steam 游戏")
+            } catch { present(error) }
+        }
     }
 
     func installSteamGame(appID: UInt64, library: SteamLibraryLocation? = nil) async {
@@ -950,7 +1004,7 @@ final class MacGamingUncleAppModel: ObservableObject {
                 steamInstallationRequests[appID] = .confirmation
                 steamClientNotice = L("Steam 需要额外确认。仅在你点击“在 Steam 中查看”时打开客户端")
             case .failed(let code):
-                try? scanDefaultSteamLibrary()
+                try? await scanDefaultSteamLibrary()
                 if steamGames.contains(where: { $0.appID == appID }) {
                     steamInstallationRequests[appID] = nil
                     steamClientNotice = L("游戏已完成安装和校验")
@@ -977,7 +1031,7 @@ final class MacGamingUncleAppModel: ObservableObject {
                 steamClientNotice = L("Steam 后台连接失败。可重试或打开 Steam；更新兼容组件后需退出并重新打开 Steam")
             }
         }
-        syncSteamLibrary()
+        await syncSteamLibrary()
     }
 
     private func downloadBridge() -> SteamDownloadBridge? {
@@ -1025,7 +1079,7 @@ final class MacGamingUncleAppModel: ObservableObject {
             let windowsPath = try WinePath.windowsPath(for:root,in:bottle)
             try await bridge.addLibrary(windowsPath:windowsPath)
             refreshSteamLibraryLocations()
-            syncSteamLibrary()
+            await syncSteamLibrary()
         } catch { steamStorageError = error.localizedDescription }
     }
 
@@ -1057,7 +1111,7 @@ final class MacGamingUncleAppModel: ObservableObject {
                     self.steamInstallationRequests[game.appID] = nil
                     self.steamBridgeDownloads[game.appID] = nil
                     self.steamDownloadSpeeds[game.appID] = nil
-                    try self.scanDefaultSteamLibrary()
+                    try await self.scanDefaultSteamLibrary()
                     self.steamClientNotice = L("游戏已卸载，可随时重新安装")
                     return
                 }
@@ -1087,7 +1141,7 @@ final class MacGamingUncleAppModel: ObservableObject {
                 // Never keep an obsolete percent/paused state after disconnect or client restart.
                 self.steamBridgeDownloads = [:]
             }
-            try? self.scanDefaultSteamLibrary()
+            try? await self.scanDefaultSteamLibrary(force: false)
             let now = Date()
             let pendingIDs = Set(self.steamDownloads.map(\.appID))
             self.downloadByteSamples = self.downloadByteSamples.filter { pendingIDs.contains($0.key) }
@@ -1130,6 +1184,7 @@ final class MacGamingUncleAppModel: ObservableObject {
     }
 
     func loadNativeSteamStore(force: Bool = false) async {
+        guard !isSteamStoreLoading else { return }
         if !force, steamStoreCatalog != nil,
            let loadedAt = steamStoreLoadedAt, Date().timeIntervalSince(loadedAt) < 15 * 60 { return }
         isSteamStoreLoading = true
@@ -1150,16 +1205,27 @@ final class MacGamingUncleAppModel: ObservableObject {
         }
     }
 
+    func resetSteamSearch(_ query: String) {
+        steamSearchTask?.cancel()
+        steamSearchTask = nil
+        steamSearchState.reset(query)
+    }
+
     func searchNativeSteamStore(_ query: String) async {
         let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard term.count >= 2 else { steamStoreSearchResults = []; return }
-        isSteamStoreLoading = true
-        steamStoreError = nil
-        defer { isSteamStoreLoading = false }
+        if term == steamSearchQuery, isSteamSearchLoading || steamSearchCompleted { return }
+        resetSteamSearch(term)
+        guard term.count >= 2 else { return }
+        let requestID = steamSearchState.begin(term)
+        let task = Task { try await SteamNativeStoreService.search(term) }
+        steamSearchTask = task
         do {
-            steamStoreSearchResults = try await SteamNativeStoreService.search(term)
+            let results = try await task.value
+            guard !task.isCancelled else { return }
+            steamSearchState.complete(results, requestID: requestID)
         } catch {
-            steamStoreError = L("搜索失败：\(error.localizedDescription)")
+            guard !task.isCancelled else { return }
+            steamSearchState.fail(L("搜索失败：\(error.localizedDescription)"), requestID: requestID)
         }
     }
 
@@ -1286,6 +1352,9 @@ final class MacGamingUncleAppModel: ObservableObject {
             } else if renderer == .wineD3D {
                 try await provider.configureWineD3DGraphics(in: bottle)
             }
+            environment.merge(SpatialAudioDiagnostics.environment(
+                enabled: configuration.spatialAudioDiagnostics == true
+            )) { _, configured in configured }
             let profile = LaunchProfile(
                 runtimeID: runtime.manifest.id,
                 preferredRenderer: renderer,
@@ -1387,43 +1456,52 @@ final class MacGamingUncleAppModel: ObservableObject {
         status = L("操作失败")
     }
 
-    private func scanDefaultSteamLibrary() throws {
+    private func scanDefaultSteamLibrary(force: Bool = true) async throws {
         guard let bottle = steamBottle else { return }
-        refreshSteamLibraryLocations()
-        let previousIDs = steamAccountGames.map(\.appID)
-        let steamApps = bottle.root.appendingPathComponent("drive_c/Program Files (x86)/Steam/steamapps", isDirectory: true)
-        let records = FileManager.default.fileExists(atPath: steamApps.path)
-            ? try SteamScanner.scan(steamApps: steamApps) : []
-        steamGames = records.filter {
-            SteamDownloadBridge.permitsPlay(manifestReady: $0.isReadyToPlay, download: steamBridgeDownloads[$0.appID])
+        let snapshot = try await steamLibraryReader.read(
+            steamRoot: SteamCompatibilityManager.steamRoot(in: bottle), bottleRoot: bottle.root, force: force)
+        guard steamBottle?.id == bottle.id, !Task.isCancelled else { return }
+        if !steamMetadataCacheLoaded {
+            let cacheURL = paths.steamCatalogCache
+            if steamMetadataCacheLoadTask == nil {
+                steamMetadataCacheLoadTask = Task.detached(priority: .utility) {
+                    SteamStoreMetadataCache.load(from: cacheURL)
+                }
+            }
+            let cached = await steamMetadataCacheLoadTask?.value ?? [:]
+            if !steamMetadataCacheLoaded {
+                steamMetadataCache = cached
+                steamMetadataCacheLoaded = true
+                steamMetadataCacheLoadTask = nil
+            }
         }
-        steamDownloads = records.filter {
-            !SteamDownloadBridge.permitsPlay(manifestReady: $0.isReadyToPlay, download: steamBridgeDownloads[$0.appID]) && $0.appID != 228980
+        let records = snapshot.records
+        let playable = records.filter {
+            SteamDownloadBridge.permitsPlay(manifestReady: snapshot.readyAppIDs.contains($0.appID), download: steamBridgeDownloads[$0.appID])
         }
-        steamAccountGames = try SteamAccountLibraryScanner.scan(
-            steamRoot: SteamCompatibilityManager.steamRoot(in: bottle),
-            installed: records
-        )
-        steamActivities = SteamActivityScanner.scan(
-            steamRoot: SteamCompatibilityManager.steamRoot(in: bottle)
-        )
-        steamMetadataCache = SteamStoreMetadataCache.load(from: paths.steamCatalogCache)
-        for index in steamAccountGames.indices {
-            guard let metadata = steamMetadataCache[steamAccountGames[index].appID] else { continue }
-            steamAccountGames[index].name = metadata.name
-            steamAccountGames[index].headerImageURL = metadata.headerImageURL
-            steamAccountGames[index].description = metadata.description
+        let downloading = records.filter {
+            !SteamDownloadBridge.permitsPlay(manifestReady: snapshot.readyAppIDs.contains($0.appID), download: steamBridgeDownloads[$0.appID]) && $0.appID != 228980
         }
-        if previousIDs != steamAccountGames.map(\.appID) || steamMetadataTask == nil {
-            scheduleSteamMetadataHydration()
+        if steamGames != playable { steamGames = playable }
+        if steamDownloads != downloading { steamDownloads = downloading }
+        var accountGames = snapshot.accountGames
+        for index in accountGames.indices {
+            guard let metadata = steamMetadataCache[accountGames[index].appID] else { continue }
+            accountGames[index].name = metadata.name
+            accountGames[index].headerImageURL = metadata.headerImageURL
+            accountGames[index].description = metadata.description
         }
+        if steamAccountGames != accountGames { steamAccountGames = accountGames }
+        if steamActivities != snapshot.activities { steamActivities = snapshot.activities }
+        if steamLibraries != snapshot.libraries { steamLibraries = snapshot.libraries }
+        scheduleSteamMetadataHydration()
     }
 
-    func syncSteamLibrary() {
+    func syncSteamLibrary() async {
         guard !onboardingBusy, !isWorking else { return }
         pollSteamDownloads()
         do {
-            try scanDefaultSteamLibrary()
+            try await scanDefaultSteamLibrary(force: false)
             if !steamAccountGames.isEmpty {
                 status = L("已同步 \(steamAccountGames.count) 款账户游戏")
             } else {
@@ -1435,13 +1513,18 @@ final class MacGamingUncleAppModel: ObservableObject {
     }
 
     private func scheduleSteamMetadataHydration() {
-        steamMetadataTask?.cancel()
+        guard steamMetadataTask == nil else { return }
         let appIDs = steamAccountGames
-            .filter { steamMetadataCache[$0.appID] == nil }
+            .filter { steamMetadataCache[$0.appID] == nil && steamMetadataRetry.canAttempt($0.appID) }
             .map(\.appID)
         guard !appIDs.isEmpty else { return }
+        isSteamMetadataLoading = true
         steamMetadataTask = Task { [weak self] in
             guard let self else { return }
+            defer {
+                self.steamMetadataTask = nil
+                self.isSteamMetadataLoading = false
+            }
             for offset in stride(from: 0, to: appIDs.count, by: 8) {
                 if Task.isCancelled { return }
                 let chunk = Array(appIDs[offset..<min(offset + 8, appIDs.count)])
@@ -1453,15 +1536,24 @@ final class MacGamingUncleAppModel: ObservableObject {
                     for await value in group { values.append(value) }
                     return values
                 }
+                guard !Task.isCancelled else { return }
                 for (appID, details) in metadata {
-                    guard let details,
-                          let index = self.steamAccountGames.firstIndex(where: { $0.appID == appID }) else { continue }
+                    guard let details else {
+                        self.steamMetadataRetry.failed(appID)
+                        continue
+                    }
+                    self.steamMetadataRetry.succeeded(appID)
+                    guard let index = self.steamAccountGames.firstIndex(where: { $0.appID == appID }) else { continue }
                     self.steamAccountGames[index].name = details.name
                     self.steamAccountGames[index].headerImageURL = details.headerImageURL
                     self.steamAccountGames[index].description = details.description
                     self.steamMetadataCache[appID] = details
                 }
-                try? SteamStoreMetadataCache.save(self.steamMetadataCache, to: self.paths.steamCatalogCache)
+                let cache = self.steamMetadataCache
+                let cacheURL = self.paths.steamCatalogCache
+                await Task.detached(priority: .utility) {
+                    try? SteamStoreMetadataCache.save(cache, to: cacheURL)
+                }.value
             }
         }
     }
@@ -1548,6 +1640,6 @@ final class MacGamingUncleAppModel: ObservableObject {
             self.steamClientNotice = self.status
         }
         if lastError != nil { steamClientNotice = L("未能打开 Steam 客户端，请检查错误提示后重试") }
-        syncSteamLibrary()
+        await syncSteamLibrary()
     }
 }

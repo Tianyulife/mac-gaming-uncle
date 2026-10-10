@@ -18,6 +18,9 @@ public actor LocalWineImporter {
     }
 
     public func importRuntime(from source: URL) async throws -> LocalWineRuntime {
+        if let managed = CommunityIndieWineBootstrapper.managedBuildRoot(in: source) {
+            return try await CommunityIndieWineBootstrapper(paths: paths).installLocalBuild(from: managed)
+        }
         try paths.createDirectories()
         guard let sourceWine = Self.findWine(in: source) else {
             throw IndieError.notFound(L("所选目录中没有 Wine 可执行文件"))
@@ -92,6 +95,30 @@ public actor LocalWineImporter {
                 return LocalWineRuntime(manifest: value.manifest, root: url, importedAt: value.importedAt)
             }
         }.sorted { $0.manifest.version > $1.manifest.version }
+    }
+
+    /// Only remove an installed version owned by this importer. Moving to Trash
+    /// leaves the user's bottles and games intact and allows recovery.
+    public func removeRuntime(_ runtime: LocalWineRuntime) throws {
+        let expected = paths.runtimes.appendingPathComponent(runtime.manifest.id)
+            .appendingPathComponent(runtime.manifest.version.description).standardizedFileURL
+        let root = runtime.root.standardizedFileURL
+        guard root == expected,
+              root.resolvingSymlinksInPath().deletingLastPathComponent().deletingLastPathComponent()
+                == paths.runtimes.resolvingSymlinksInPath(),
+              installed().contains(where: { $0.id == runtime.id && $0.root.standardizedFileURL == root }) else {
+            throw IndieError.invalidData(L("只能删除应用管理的已安装 Wine 版本"))
+        }
+        guard !WineProcessReaper.hasRunningProcesses(runtimeRoot: root) else {
+            throw IndieError.invalidData(L("这个 Wine 仍在运行，请先退出游戏和 Windows Steam"))
+        }
+        try FileManager.default.trashItem(at: root, resultingItemURL: nil)
+    }
+
+    public static func selectedGamingRuntime(in runtimes: [LocalWineRuntime], preferredID: String?) -> LocalWineRuntime? {
+        let candidates = runtimes.filter { $0.manifest.id == CommunityIndieWineBootstrapper.runtimeID }
+            .sorted { $0.manifest.version > $1.manifest.version }
+        return candidates.first { $0.id == preferredID } ?? candidates.first
     }
 
     public static func findWine(in root: URL) -> URL? {

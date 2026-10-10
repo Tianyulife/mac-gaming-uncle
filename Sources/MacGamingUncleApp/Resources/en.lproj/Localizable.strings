@@ -36,3 +36,6 @@
 "settings.channel" = "Update channel";
 "settings.metalHUD" = "Enable Metal HUD by default";
 "settings.privacy" = "Mac Gaming Uncle collects no telemetry. Compatibility recipes update from an auditable Git repository.";
+"音频诊断" = "Audio diagnostics";
+"记录空间音频诊断日志" = "Record spatial audio diagnostic logs";
+"用于确认游戏是否提交空间音频对象。日志会增加运行开销；短时测试结束后关闭，并重新启动游戏。" = "Confirm whether the game submits spatial audio objects. Logging adds overhead; turn it off after a short test and restart the game.";

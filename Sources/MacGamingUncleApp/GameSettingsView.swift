@@ -140,6 +140,15 @@ struct GameSettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
+                Section(L("音频诊断")) {
+                    Toggle(L("记录空间音频诊断日志"), isOn: Binding(
+                        get: { configuration.spatialAudioDiagnostics == true },
+                        set: { configuration.spatialAudioDiagnostics = $0 ? true : nil }
+                    ))
+                    Text(L("用于确认游戏是否提交空间音频对象。日志会增加运行开销；短时测试结束后关闭，并重新启动游戏。"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
                 Section(L("启动参数")) {
                     TextEditor(text: $argumentLines).font(.system(.body, design: .monospaced)).frame(minHeight: 70)
                     Text(L("每行一个参数；仅应用于这个游戏。"))

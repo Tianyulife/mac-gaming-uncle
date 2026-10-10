@@ -235,14 +235,19 @@ final class IndieRuntimeTests: XCTestCase {
         for executable in ["bin/wine", "bin/wineserver"] {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: payload.appendingPathComponent(executable).path)
         }
-        try Data("11.0.2\n".utf8).write(to: payload.appendingPathComponent("runtime-version.txt"))
+        try Data("11.0.3-spatial.2\n".utf8).write(to: payload.appendingPathComponent("runtime-version.txt"))
+        try Data(#"{"runtime":"Mac Gaming Uncle Wine 11"}"#.utf8).write(to: payload.appendingPathComponent("source.lock.json"))
 
-        let installed = try await CommunityIndieWineBootstrapper(paths: paths).installLocalBuild(
+        let installed = try await LocalWineImporter(paths: paths).importRuntime(
             from: payload.deletingLastPathComponent()
         )
-        XCTAssertEqual(installed.manifest.version, SemanticVersion(major: 11, minor: 0, patch: 2))
+        XCTAssertEqual(installed.manifest.id, CommunityIndieWineBootstrapper.runtimeID)
+        XCTAssertEqual(installed.manifest.channel, .experimental)
+        XCTAssertEqual(installed.manifest.version, SemanticVersion(major: 11, minor: 0, patch: 3, prerelease: "spatial.2"))
         XCTAssertTrue(CommunityIndieWineBootstrapper.hasControllerSupport(installed.root))
-        XCTAssertEqual(installed.root.lastPathComponent, "11.0.2")
+        XCTAssertEqual(installed.root.lastPathComponent, "11.0.3-spatial.2")
+        try Data(#"{"runtime":"Other Wine"}"#.utf8).write(to: payload.appendingPathComponent("source.lock.json"))
+        XCTAssertNil(CommunityIndieWineBootstrapper.managedBuildRoot(in: payload.deletingLastPathComponent()))
     }
 
     func testControllerRuntimeRejectsSDLFreePayload() async throws {
@@ -321,11 +326,13 @@ final class IndieRuntimeTests: XCTestCase {
             directX: .d3d12, antiCheat: .none, importedLibraries: ["d3d12.dll"]
         )
         let fallback = "\(external.path):\(runtimeLibraries.path)"
+        var environment = ["WINEDLLPATH_PREPEND": bridge.path, "DYLD_FALLBACK_LIBRARY_PATH": fallback]
+        environment.merge(SpatialAudioDiagnostics.environment(enabled: true)) { _, diagnostic in diagnostic }
         let plan = try LaunchPlanBuilder.build(
             executable: root.appendingPathComponent("game.exe"), bottle: bottle,
             profile: LaunchProfile(
                 runtimeID: "org.indie.wine11", preferredRenderer: .d3dMetal,
-                environment: ["WINEDLLPATH_PREPEND": bridge.path, "DYLD_FALLBACK_LIBRARY_PATH": fallback]
+                environment: environment
             ),
             analysis: analysis, recipe: nil,
             installed: InstalledRenderers(available: [.d3dMetal], overlayPaths: [.d3dMetal: bridge])
@@ -333,6 +340,12 @@ final class IndieRuntimeTests: XCTestCase {
         XCTAssertEqual(plan.environment["WINEDLLPATH_PREPEND"], bridge.path)
         XCTAssertEqual(plan.environment["WINEDLLPATH"], bridge.path)
         XCTAssertEqual(plan.environment["DYLD_FALLBACK_LIBRARY_PATH"], fallback)
+        let relayed = SteamCompatibilityManager.relayEnvironment(for: plan.environment)
+        XCTAssertEqual(relayed["WINEDEBUG"], "-all,+mmdevapi,+coreaudio")
+        XCTAssertEqual(relayed["SWITCHYARD_SPATIAL_AUDIO_PROFILE"], "1")
+        XCTAssertEqual(relayed["WINEDLLPATH_PREPEND"], bridge.path)
+        XCTAssertEqual(relayed["DYLD_FALLBACK_LIBRARY_PATH"], fallback)
+        XCTAssertTrue(SpatialAudioDiagnostics.environment(enabled: false).isEmpty)
     }
 
     func testLocalWineImporterFindsNestedBundleLayout() throws {
