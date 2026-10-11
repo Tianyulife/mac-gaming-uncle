@@ -21,6 +21,10 @@
 无需游戏支持 DLSS。开启一次后自动跟随游戏窗口，默认关闭；不改变分辨率或鼠标坐标。需要 macOS 26。	No game DLSS support required. Enable once to follow its window automatically; off by default. Does not change resolution or pointer coordinates. Requires macOS 26.
 显示器或缩放变化，插帧停止；请重新选择窗口	Display or scaling changed; interpolation stopped. Select the window again.
 通用插帧（实验）	Universal Frame Interpolation (Experimental)
+插帧最高以 30 FPS、1280×720 捕获，目标为 2× 输出，再放大到原窗口尺寸；游戏分辨率保持不变。持续超时则显示原画面。	Interpolation captures up to 30 FPS at 1280×720, targets 2× output and upscales to the original window size. Game resolution is unchanged. Sustained overruns show the original image.
+提交帧数不是实测显示 FPS。窗口变形、切出游戏或设备处理失败时自动停止。呈现计数来自显示回调，仍不代表游戏逻辑帧率。	Submitted frame counts are not measured display FPS. Stops on window changes, focus loss or processing failure. Presentation counts come from display callbacks and are not game simulation FPS.
+插帧输出调整中；持续超时则显示原画面	Adjusting interpolation timing; sustained overruns show the original image
+设备未及时生成插帧，已保留原画面	Device did not generate frames in time; original image retained
 为此游戏启用 2× 插帧	Enable 2× interpolation for this game
 只处理游戏画面，不录音、不改 DPI。插帧提高显示流畅度，不提高游戏逻辑帧率；可能增加延迟和 HUD 重影。	Processes video only; no audio capture or DPI changes. Interpolation improves visual smoothness, not game simulation speed, and may add latency or HUD artifacts.
 首版仅支持窗口／无边框模式，不支持独占全屏。先显示游戏窗口，再刷新列表。	This version supports windowed and borderless modes, not exclusive fullscreen. Show the game window before refreshing the list.
@@ -618,3 +622,4 @@ Steam 显示配置	Steam display configuration
 Steam 中文字体注册	Steam CJK font registration
 正在配置 Steam 显示…	Configuring Steam display…
 %@（已清理残留进程并重试；诊断日志：%@）	%@ (stale processes cleared and retried; diagnostic log: %@)
+显示层未实际呈现画面，已恢复原画面	Display presentation stalled; the original game view has been restored.

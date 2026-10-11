@@ -115,4 +115,31 @@ final class SteamCloudLogTests: XCTestCase {
         try log.write(to: root.appendingPathComponent("logs/cloud_log.txt"), atomically: true, encoding: .utf8)
         XCTAssertEqual(SteamCloudLog.read(steamDirectory: root, since: .distantPast).states[42], .uploading)
     }
+
+    func testWindowsLogReaderConfirmsCompleteExitUploadButRejectsPartialAcknowledgement() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("windows-cloud-log-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("logs"), withIntermediateDirectories: true)
+        let file = root.appendingPathComponent("logs/cloud_log.txt")
+        let lines = [
+            "[2026-10-06 10:00:00] [AppID 42] AutoCloud checking local state for user 76561197960265851",
+            "[2026-10-06 10:00:01] [AppID 42] Starting sync (up,AC Exit,)",
+            "[2026-10-06 10:00:02] [AppID 42] Upload complete, result OK",
+        ]
+        let requirement = SteamCloudUploadRequirement(appID: 42, accountID: 123, beganAt: baseline)
+        let complete = "\r\n" + lines.joined(separator: "\r\n") + "\r\n"
+        try complete.write(to: file, atomically: true, encoding: .utf8)
+        XCTAssertTrue(observation(complete).confirms(requirement))
+        XCTAssertTrue(SteamCloudLog.read(steamDirectory: root, since: baseline).confirms(requirement))
+
+        try lines.joined(separator: "\r\n").write(to: file, atomically: true, encoding: .utf8)
+        let partial = SteamCloudLog.read(steamDirectory: root, since: baseline)
+        XCTAssertEqual(partial.states[42], .uploading)
+        XCTAssertFalse(partial.confirms(requirement))
+
+        try "[2026-10-06 10:00:00] Connection established for [U:1:123]\r\n".write(
+            to: root.appendingPathComponent("logs/connection_log.txt"), atomically: true, encoding: .utf8
+        )
+        XCTAssertEqual(SteamCloudLog.accountID(steamDirectory: root), 123)
+    }
 }

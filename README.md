@@ -3,13 +3,31 @@
   <h1>Mac Gaming Uncle</h1>
   <p><strong>Run Windows games you own on Apple Silicon Macs.</strong></p>
   <p>Native SwiftUI · Wine · Apple D3DMetal · MetalFX · DXVK</p>
-  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg">Download the 0.6.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.0">Release notes</a></p>
+  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg">Download the 0.6.1 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.1">Release notes</a></p>
   <p>English · <a href="README.zh-CN.md">简体中文</a></p>
 </div>
 
-Version 0.6.0 integrates [PR #3](https://github.com/enginefuture/mac-gaming-uncle/pull/3) with the latest Steam Cloud lifecycle protection and Wine preparation recovery. The app now downloads Wine `11.0.9-services.1` with base spatial object audio and CoreAudio rendering. Existing users can install the latest version in Advanced Settings and select it after quitting games and Windows Steam. See the [release notes](docs/releases/0.6.0.md) for scope, validation and limitations.
+Version 0.6.1 improves experimental universal 2× frame interpolation, presentation pacing and Wine game-window detection, and fixes CRLF parsing of Steam Cloud logs. It retains Wine `11.0.9-services.1` and the spatial audio/Steam lifecycle improvements introduced in [0.6.0](docs/releases/0.6.0.md). See the [0.6.1 release notes](docs/releases/0.6.1.md).
 
-The 0.6.0 research preview includes an experimental [universal 2× frame-interpolation prototype](docs/FRAME_INTERPOLATION.md), off by default, for macOS 26 windowed/borderless games. It does not guarantee doubled FPS; 1080p support and moving-HUD quality remain unresolved. Internal 4× and static-detail experiments are not enabled by the app. Its architecture was informed by [MetalDuck](https://github.com/Lospi/MetalDuck) and Apple's public VideoToolbox/ScreenCaptureKit APIs; no LSFG model is bundled.
+## Universal frame interpolation and Black Myth: Wukong
+
+Universal interpolation creates an intermediate image between captured game images and presents them through a mouse-through overlay. Its purpose is smoother displayed motion; it does not increase game simulation/rendering FPS or solve the underlying CPU/GPU bottleneck. It uses Apple's VideoToolbox, ScreenCaptureKit and MetalFX Spatial APIs. Architecture research references [MetalDuck](https://github.com/Lospi/MetalDuck); no LSFG model is bundled.
+
+**Requirements:** Apple Silicon, macOS 26+, one windowed/borderless SDR game window and screen-capture permission. The app itself still supports macOS 15+. This feature is experimental and off by default. Open **Game Settings → Universal Frame Interpolation → Open panel**, enable automatic following, use **Authorize screen capture / Refresh**, and enable Mac Gaming Uncle under **System Settings → Privacy & Security → Screen & System Audio Recording** if requested. Reopen the app if macOS requires it. Disable the game's own frame generation when evaluating this feature, then keep the game foreground. Only the target game window is captured; no audio is captured or recording saved.
+
+Capture is capped at 30 FPS and a processing budget of 1280×720; generated images are upscaled to the original window's physical output dimensions. This cap is separate from the game's rendering resolution. The target is up to two presented images per captured pair, not a guarantee of 60 FPS or twice the game's HUD FPS. Switching away pauses/stops the overlay; automatic following rechecks on return. Static scenes, capture/processing stalls and a display that stops actually presenting reveal the original game. Manual Stop suppresses automatic restart for that game run. Emergency stop: **Control + Option + Command + F12**.
+
+**Black Myth: Wukong fixed-scene test, 2026-10-11:** M3 Max, macOS 26.6.2, Wine `11.0.9-services.1`, locally imported GPTK 4.0b2 / D3DMetal, DX12 + MetalFX/DLSS mapping, in-game frame generation off. The user confirmed DLSS could be selected in the earlier launch test. This is an experimental MetalFX mapping, not NVIDIA RTX hardware support.
+
+| Observation | Result |
+| --- | --- |
+| Game HUD and user feedback | 40 FPS; somewhat smoother than before |
+| Interpolation processing → physical overlay output | 1104×720 → 3024×1964; no game resolution or Wine DPI changes |
+| First five minutes, excluding five startup snapshots | 52.30 distinct drawable presentation callbacks/s; per-minute rates 50.73 / 51.68 / 51.63 / 53.82 / 53.53, without progressive decline |
+| Last snapshot before 300 seconds | Processing P95 14.53 ms; presentation interval P95 33.33 ms, P99 41.67 ms; zero capture-copy failures and renderer backpressure |
+| End of the probe | Visibility protection stopped it at 306.27 seconds after the user switched applications; probe exit 2, not a clean full-run pass |
+
+These presentation callbacks are **not engine FPS or a physical monitor refresh measurement**. Intervals remain uneven; stable 60 FPS, doubled performance and universal compatibility are not established. An earlier 60-second attempt generated frames with zero actual presentations; the new independent presentation watchdog prevents that false-running state, but the intermittent display cause remains unresolved. The five-minute probe used the production capture/presentation sources in a separate helper, not a five-minute acceptance test of the packaged app. Possible added latency, HUD ghosting and combat image quality remain unvalidated. Direct 1920×1080 interpolation failed on this machine; higher output resolutions use the capped processing path. See [implementation and full test history](docs/FRAME_INTERPOLATION.md) and [release validation](docs/validation/release-0.6.1-20261011.json).
 
 <p align="center">
   <img src="Assets/MacGamingUncleHero.png" width="100%" alt="Uncle was not wrong—he was simply early.">
@@ -28,9 +46,9 @@ Open ** → About This Mac**. You need an Apple Silicon (M-series) Mac with *
 
 ### 2. Download the installer
 
-Select **[Download Mac Gaming Uncle 0.6.0 (DMG)](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg)**.
+Select **[Download Mac Gaming Uncle 0.6.1 (DMG)](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg)**.
 
-Alternatively, open the [Release page](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.0) and choose `Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg` under **Assets**. `Source code`, `.sha256`, and the Wine `.tar.xz` are source archives, checksums, and a runtime that the app downloads automatically—not the app installer.
+Alternatively, open the [Release page](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.1) and choose `Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg` under **Assets**. `Source code`, `.sha256`, and the Wine `.tar.xz` are source archives, checksums, and a runtime that the app downloads automatically—not the app installer.
 
 ### 3. Install and open the app
 
@@ -85,7 +103,7 @@ The official Mac Gaming Uncle project and its official releases will remain perm
 
 ## Project status
 
-Mac Gaming Uncle is currently a `0.6.0` research preview for Apple Silicon and macOS 15 or later. It now provides a Steam-client shell, native Store and Library, per-game settings, a reusable global Steam session, and an SDL/XInput controller launch path.
+Mac Gaming Uncle is currently a `0.6.1` research preview for Apple Silicon and macOS 15 or later. It now provides a Steam-client shell, native Store and Library, per-game settings, a reusable global Steam session, and an SDL/XInput controller launch path.
 
 Hardware validation: Apple M3 Max, macOS 26.6.2, GPTK 4.0 beta 2, and Mac Gaming Uncle Wine 11.0.2. `Grim Dawn 1.3.0.8 (x64)` has been validated with its complete Chinese UI, Steam integration, XInput controller support, and Apple's in-game Metal HUD (D3D11, approximately 114 FPS); `Ruins of Dawn` reaches its main menu.
 
@@ -160,7 +178,7 @@ Mac Gaming Uncle composes, verifies, and launches these layers. It does not modi
 
 For developers only: this requires Xcode 26 or a compatible full Swift 6 toolchain. Other users should follow the Beginner installation guide above.
 
-If you do not need a development environment, download the mount-verified [Mac Gaming Uncle 0.6.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg) and verify it with the adjacent [SHA-256 file](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg.sha256).
+If you do not need a development environment, download the mount-verified [Mac Gaming Uncle 0.6.1 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg) and verify it with the adjacent [SHA-256 file](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg.sha256).
 
 ```bash
 git clone https://github.com/enginefuture/mac-gaming-uncle.git

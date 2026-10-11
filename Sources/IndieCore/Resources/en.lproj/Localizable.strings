@@ -714,3 +714,8 @@
 "最大化或恢复窗口" = "Zoom / Restore Window";
 
 "进入或退出全屏" = "Enter / Exit Full Screen";
+"插帧最高以 30 FPS、1280×720 捕获，目标为 2× 输出，再放大到原窗口尺寸；游戏分辨率保持不变。持续超时则显示原画面。" = "Interpolation captures up to 30 FPS at 1280×720, targets 2× output and upscales to the original window size. Game resolution is unchanged. Sustained overruns show the original image.";
+"提交帧数不是实测显示 FPS。窗口变形、切出游戏或设备处理失败时自动停止。呈现计数来自显示回调，仍不代表游戏逻辑帧率。" = "Submitted frame counts are not measured display FPS. Stops on window changes, focus loss or processing failure. Presentation counts come from display callbacks and are not game simulation FPS.";
+"插帧输出调整中；持续超时则显示原画面" = "Adjusting interpolation timing; sustained overruns show the original image";
+"设备未及时生成插帧，已保留原画面" = "Device did not generate frames in time; original image retained";
+"显示层未实际呈现画面，已恢复原画面" = "Display presentation stalled; the original game view has been restored.";

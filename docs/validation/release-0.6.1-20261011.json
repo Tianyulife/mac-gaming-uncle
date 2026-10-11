@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-11",
+  "applicationVersion": "0.6.1",
+  "applicationBuild": "11",
+  "runtimeVersion": "11.0.9-services.1",
+  "runtimeRebuilt": false,
+  "swiftRegression": {
+    "tests": 138,
+    "skipped": 4,
+    "failures": 0,
+    "suites": {
+      "IndieCore": 33,
+      "IndieRuntime": 78,
+      "IndieCatalog": 27
+    },
+    "command": "scripts/check.sh"
+  },
+  "checks": {
+    "lockedWinePatchTests": {
+      "tests": 7,
+      "failures": 0
+    },
+    "releaseAppBuild": "passed",
+    "releaseCLIBuild": "passed",
+    "windowsFixturesBuild": "passed (build only, no new runtime execution)",
+    "steamBridge": "passed",
+    "steamPresentation": "passed",
+    "packagedEnglishAndChinese": "passed",
+    "newInterpolationMessageTranslations": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "blackMythWukong": {
+    "hardware": "Apple M3 Max, 40 GPU cores, 128 GB RAM",
+    "macOS": "26.6.2",
+    "graphics": "DX12, locally imported GPTK 4.0b2 / D3DMetal, experimental MetalFX/DLSS mapping",
+    "inGameFrameGeneration": false,
+    "dlssSelectable": "user confirmed in earlier launch test",
+    "testScope": "fixed scene; separate helper compiled from production capture, processing and presentation sources; not packaged-app long-run acceptance",
+    "processingResolution": [
+      1104,
+      720
+    ],
+    "physicalOverlayOutput": [
+      3024,
+      1964
+    ],
+    "gameResolutionOrWineDPIChanged": false,
+    "userFeedback": {
+      "hudFPS": 40,
+      "experience": "somewhat better than before",
+      "switchedApplicationsAtEnd": true
+    },
+    "first300Seconds": {
+      "excludedStartupSnapshots": 5,
+      "measuredIntervalSeconds": 292.7162539958954,
+      "distinctDrawablePresentationCallbacksPerSecond": 52.30321101408562,
+      "minuteRates": [
+        {
+          "start": 0,
+          "end": 60,
+          "distinct_presentations_per_second": 50.733930935999155
+        },
+        {
+          "start": 60,
+          "end": 120,
+          "distinct_presentations_per_second": 51.68499153257929
+        },
+        {
+          "start": 120,
+          "end": 180,
+          "distinct_presentations_per_second": 51.63400866790233
+        },
+        {
+          "start": 180,
+          "end": 240,
+          "distinct_presentations_per_second": 53.821853708910844
+        },
+        {
+          "start": 240,
+          "end": 300,
+          "distinct_presentations_per_second": 53.52554591874985
+        }
+      ],
+      "lastSnapshotElapsedSeconds": 299.84697103500366,
+      "presentedOriginal": 7839,
+      "presentedGenerated": 7754,
+      "captureCopyFailures": 0,
+      "rendererBackpressure": 0,
+      "deadlineDrops": 598,
+      "presentationSkips": 374,
+      "processingP95Milliseconds": 14.525000005960464,
+      "recentPresentationIntervalP95Milliseconds": 33.33279164507985,
+      "recentPresentationIntervalP99Milliseconds": 41.66637500748038
+    },
+    "continuousOutputObservedThroughSeconds": 302.9805899858475,
+    "probeEnd": {
+      "exitCode": 2,
+      "cleanAcceptancePass": false,
+      "snapshotCount": 291,
+      "elapsedSeconds": 306.26968002319336,
+      "stopKind": "transient",
+      "status": "窗口尺寸或可见性变化，插帧停止",
+      "visibilitySuspensions": 1,
+      "overlayX": -1572,
+      "presentedOriginal": 7953,
+      "presentedGenerated": 7863,
+      "captureCopyFailures": 0,
+      "rendererBackpressure": 5
+    },
+    "resourceObservation": {
+      "samples": 13,
+      "seconds": 240,
+      "rssApproximateGiB": 9.01,
+      "rssSpanApproximateMiB": 5.2,
+      "systemThermalWarningRecorded": false,
+      "systemPerformanceWarningRecorded": false,
+      "gpuClockOrTemperatureMeasured": false
+    },
+    "priorFailedDisplayTrial": {
+      "seconds": 60,
+      "generated": 1761,
+      "presentedOriginal": 0,
+      "presentedGenerated": 0,
+      "rendererBackpressure": 516,
+      "captureCopyFailures": 0,
+      "cause": "unresolved; independent actual-presentation watchdog added to avoid a false-running state"
+    },
+    "limits": [
+      "Presentation callbacks are not game-engine FPS or physical monitor refresh measurements.",
+      "Capture capped at 30 FPS; processing capped at 1280x720 budget; 60 FPS and doubled performance not established.",
+      "Uneven intervals, combat quality, HUD artifacts, added input latency and multi-display operation remain unvalidated.",
+      "Direct 1920x1080 interpolation failed on this machine.",
+      "No thermal warning does not exclude GPU throttling."
+    ]
+  },
+  "packaging": {
+    "dmgChecksumAndReadOnlyMount": "passed",
+    "adHocSignatureVerification": "passed",
+    "bundledEnglishAndChineseResources": "passed",
+    "applicationArchitecture": "arm64",
+    "minimumMacOS": "15.0",
+    "interpolationMinimumMacOS": "26.0",
+    "signing": "ad-hoc",
+    "notarized": false,
+    "applicationBinarySHA256": "f1354e9fd54f26fc2f761c9a33b162bcdbba45ce25691ebe1458748b5874ab1c"
+  },
+  "artifacts": [
+    {
+      "name": "Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg",
+      "size": 5753267,
+      "sha256": "51fb7464766cd647bb63e13acc618a0a49db5c752e4c2a9f79fab5ffc1719200"
+    }
+  ],
+  "remainingValidation": [
+    "Clean packaged-app foreground long run and combat quality/input latency.",
+    "Root cause of the intermittent zero-presentation trial.",
+    "Steam account/game cloud-save cross-device round trip.",
+    "Unchanged audio runtime limitations remain in release 0.6.0 validation."
+  ]
+}

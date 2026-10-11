@@ -3,13 +3,31 @@
   <h1>Mac Gaming Uncle</h1>
   <p><strong>在 Apple Silicon Mac 上运行你拥有的 Windows 游戏。</strong></p>
   <p>原生 SwiftUI · Wine · Apple D3DMetal · MetalFX · DXVK</p>
-  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg">下载 0.6.0 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.0">版本说明</a></p>
+  <p><a href="https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg">下载 0.6.1 DMG</a> · <a href="https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.1">版本说明</a></p>
   <p><a href="README.md">English</a> · 简体中文</p>
 </div>
 
-0.6.0 合并了 [PR #3](https://github.com/enginefuture/mac-gaming-uncle/pull/3) 和最新的 Steam 云同步退出保护、Wine 准备超时恢复。应用自动下载的 Wine 已升级为 `11.0.9-services.1`，包含基础空间对象音频与 CoreAudio 渲染。老用户可在高级设置安装最新版本，退出游戏和 Windows Steam 后再选择该版本。功能范围、验证与限制见[版本说明](docs/releases/0.6.0.md)。
+0.6.1 改进实验性通用 2× 插帧、呈现节奏和 Wine 游戏窗口识别，并修复 Steam 云同步日志的 CRLF 换行解析。继续使用 Wine `11.0.9-services.1`，保留 [0.6.0](docs/releases/0.6.0.md) 的空间音频与 Steam 会话保护。详见 [0.6.1 版本说明](docs/releases/0.6.1.md)。
 
-0.6.0 研究预览版仍包含默认关闭的[通用 2× 插帧原型](docs/FRAME_INTERPOLATION.md)，适用于 macOS 26 的窗口／无边框游戏；不保证帧率翻倍，1080p 支持和移动 HUD 画质仍需改进；应用不启用内部的 4× 和静态细节实验。架构研究参考了 [MetalDuck](https://github.com/Lospi/MetalDuck) 和 Apple 的 VideoToolbox／ScreenCaptureKit 公开接口，不包含小黄鸭 LSFG 模型。
+## 通用插帧的作用与《黑神话：悟空》实测
+
+通用插帧在捕获的游戏画面之间生成中间图像，通过不拦截鼠标的叠加窗口显示，目的是改善运动流畅度。它不会提高游戏逻辑或渲染帧率，也不能消除游戏本身的 CPU／GPU 瓶颈。实现使用 Apple 的 VideoToolbox、ScreenCaptureKit 和 MetalFX Spatial；架构研究参考 [MetalDuck](https://github.com/Lospi/MetalDuck)，不包含 LSFG 模型。
+
+**使用条件：**Apple Silicon、macOS 26 及以上、单个窗口／无边框 SDR 游戏窗口，以及录屏权限。应用其他功能仍支持 macOS 15。插帧属于实验功能，默认关闭。进入 **游戏设置 → 通用插帧 → 打开面板**，打开自动跟随，点击 **授权录屏／刷新**；需要时在 **系统设置 → 隐私与安全性 → 录屏与系统录音** 中允许 Mac Gaming Uncle，按系统提示重新打开应用。测试时关闭游戏自带的帧生成，再保持游戏前台。实现只捕获目标游戏窗口，不采集音频、不保存录像。
+
+当前捕获上限为 30 FPS，插帧处理预算为 1280×720，再放大到原窗口的物理输出尺寸；处理上限与游戏渲染分辨率是两回事。目标为每组捕获画面呈现原始帧和生成帧，不保证 60 FPS，也不保证游戏 HUD 的 FPS 翻倍。切出游戏会暂停／停止叠加，返回后自动重新检查。静止画面、捕获／处理停滞或显示层未实际呈现时恢复原画面。手动停止后，本次游戏运行不会自动重启插帧；全局紧急停止为 **Control + Option + Command + F12**。
+
+**悟空固定场景实测（2026-10-11）：**M3 Max、macOS 26.6.2、Wine `11.0.9-services.1`、本地导入的 GPTK 4.0b2／D3DMetal，采用 DX12 + MetalFX/DLSS 映射，关闭游戏内帧生成。此前启动测试中用户确认 DLSS 可以选择；这是实验性的 MetalFX 映射，不代表 Mac 获得 NVIDIA RTX 硬件支持。
+
+| 观察项 | 结果 |
+| --- | --- |
+| 游戏 HUD 与用户反馈 | 40 FPS，体感比之前好一些 |
+| 插帧处理 → 叠加物理输出 | 1104×720 → 3024×1964；未改游戏分辨率或 Wine DPI |
+| 前五分钟，去掉前五个启动采样 | 平均 52.30 次独立画面呈现回调／秒；逐分钟为 50.73／51.68／51.63／53.82／53.53，没有持续下降 |
+| 300 秒前最后一次采样 | 处理耗时 P95 14.53 ms；呈现间隔 P95 33.33 ms、P99 41.67 ms；采集复制失败和显示队列背压均为 0 |
+| 测试结束 | 用户切换应用后，306.27 秒时触发可见性保护；探针退出码为 2，不算完整通过 |
+
+呈现回调**不是游戏 FPS，也不是物理屏幕刷新率测量**。帧间隔仍不均匀，尚不能承诺稳定 60 帧、性能翻倍或所有游戏兼容。此前一次 60 秒测试出现“生成了图像但没有实际呈现”；新增独立呈现看门狗会处理这种假运行状态，但间歇性显示问题的根因尚未解决。五分钟数据来自复用正式捕获／呈现源码的独立探针，不是安装版主程序的五分钟验收。输入延迟、HUD 拖影和战斗画质仍需验证。本机直接以 1920×1080 插帧曾失败，更高输出分辨率通过受限处理尺寸再放大实现。详见[实现与完整测试历史](docs/FRAME_INTERPOLATION.md)和[发布验证记录](docs/validation/release-0.6.1-20261011.json)。
 
 <p align="center">
   <img src="Assets/MacGamingUncleHero.png" width="100%" alt="叔叔没有选错，只是选得太早。">
@@ -28,9 +46,9 @@
 
 ### 2. 下载应用安装包
 
-点击 **[下载 Mac Gaming Uncle 0.6.0（DMG）](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg)**。
+点击 **[下载 Mac Gaming Uncle 0.6.1（DMG）](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg)**。
 
-也可以打开 [Release 页面](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.0)，在 **Assets（资源）** 中选择 `Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg`。不要选择 `Source code`、`.sha256` 或 Wine 的 `.tar.xz`：它们分别是源码、校验文件和由应用自动安装的运行时。
+也可以打开 [Release 页面](https://github.com/enginefuture/mac-gaming-uncle/releases/tag/v0.6.1)，在 **Assets（资源）** 中选择 `Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg`。不要选择 `Source code`、`.sha256` 或 Wine 的 `.tar.xz`：它们分别是源码、校验文件和由应用自动安装的运行时。
 
 ### 3. 安装到“应用程序”并打开
 
@@ -85,7 +103,7 @@ Mac Gaming Uncle 官方项目和官方发行将永久保持非商业化：不推
 
 ## 项目状态
 
-Mac Gaming Uncle 目前处于 `0.6.0` 研究预览阶段，面向 Apple Silicon 与 macOS 15 及以上版本。应用已经打通 Steam 客户端式外壳、原生商店与游戏库、每游戏独立配置、全局 Steam 会话以及 SDL/XInput 手柄启动闭环。
+Mac Gaming Uncle 目前处于 `0.6.1` 研究预览阶段，面向 Apple Silicon 与 macOS 15 及以上版本。应用已经打通 Steam 客户端式外壳、原生商店与游戏库、每游戏独立配置、全局 Steam 会话以及 SDL/XInput 手柄启动闭环。
 
 实机验证环境：Apple M3 Max、macOS 26.6.2、GPTK 4.0 beta 2、Mac Gaming Uncle Wine 11.0.2。`Grim Dawn 1.3.0.8 (x64)` 已验证完整中文 UI、Steam 集成、XInput 手柄与 Apple 官方 Metal HUD（D3D11，实测约 114 FPS）；`Ruins of Dawn` 已验证进入主菜单。
 
@@ -160,7 +178,7 @@ Mac Gaming Uncle 负责组合、验证和启动这些层。它不会修改游戏
 
 以下仅供开发者使用，需要 Xcode 26 或兼容 Swift 6 的完整开发工具链。普通用户请按上方“新手下载安装指南”安装 DMG。
 
-不需要开发环境时，可直接下载经过挂载和签名结构验证的 [Mac Gaming Uncle 0.6.0 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg)，并用同目录的 [SHA-256 文件](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.0/Mac-Gaming-Uncle-0.6.0-macOS-arm64.dmg.sha256) 校验。
+不需要开发环境时，可直接下载经过挂载和签名结构验证的 [Mac Gaming Uncle 0.6.1 DMG](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg)，并用同目录的 [SHA-256 文件](https://github.com/enginefuture/mac-gaming-uncle/releases/download/v0.6.1/Mac-Gaming-Uncle-0.6.1-macOS-arm64.dmg.sha256) 校验。
 
 ```bash
 git clone https://github.com/enginefuture/mac-gaming-uncle.git

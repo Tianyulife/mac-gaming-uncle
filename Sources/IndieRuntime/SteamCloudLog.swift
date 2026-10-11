@@ -51,7 +51,9 @@ public enum SteamCloudLog {
         var result = Observation()
         var exitUpload = Set<UInt64>()
         var upload = Set<UInt64>()
-        for line in text.split(separator: "\n") {
+        // Swift treats CRLF as one Character; splitting on LF misses Steam's
+        // Windows logs. Accept each newline Character, including CRLF.
+        for line in text.split(whereSeparator: \.isNewline) {
             guard line.first == "[", line.count > 21,
                   let date = formatter.date(from: String(line.dropFirst().prefix(19))),
                   date >= since,
@@ -121,6 +123,9 @@ public enum SteamCloudLog {
             let offset = end > 2_000_000 ? end - 2_000_000 : 0
             try handle.seek(toOffset: offset)
             var text = String(decoding: try handle.readToEnd() ?? Data(), as: UTF8.self)
+            // Normalize before boundary checks so complete CRLF lines are
+            // retained and a partially written final acknowledgement is dropped.
+            text = text.replacingOccurrences(of: "\r\n", with: "\n")
             if offset > 0 { text = text.firstIndex(of: "\n").map { String(text[text.index(after: $0)...]) } ?? "" }
             // A partial final line cannot be a terminal acknowledgement.
             if !text.hasSuffix("\n") { text = text.lastIndex(of: "\n").map { String(text[...$0]) } ?? "" }
